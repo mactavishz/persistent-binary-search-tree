@@ -91,8 +91,14 @@ class PartialPersistentBst:
             self.roots.append(FatNode(key, 0))
         else:
             version = self.get_latest_version() + 1
-            self.roots.append(self.roots[-1])
-            self._insert(FatNode(key, version), version)
+            last_root = self.roots[-1]
+            # if the latest version gives us an empty tree
+            # we need to create a new root node
+            if last_root is None:
+                self.roots.append(FatNode(key, version))
+            else:
+                self.roots.append(last_root)
+                self._insert(FatNode(key, version), version)
  
     def _insert(self, node, version):
         root = self.roots[version]
