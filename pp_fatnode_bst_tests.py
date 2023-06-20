@@ -76,6 +76,18 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             self.assertEqual(tree.search(key, version), None)
             self.assertEqual(tree.inorder(version), sorted(control_copy))
 
+    def test_delete_all(self):
+        tree = Bst()
+        for i in range(100):
+            tree.insert(i)
+        self.assertEqual(tree.inorder(tree.get_latest_version()), [i for i in range(100)])
+        for i in reversed(range(100)): 
+            tree.delete(i)
+        self.assertEqual(tree.inorder(tree.get_latest_version()), [])
+        for i in range(100):
+            tree.insert(i)
+        self.assertEqual(tree.inorder(tree.get_latest_version()), [i for i in range(100)])
+
     def test_manual_random(self):
         tree = Bst()
         tree.insert(8)  # version 0
