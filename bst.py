@@ -65,7 +65,7 @@ class BinarySearchTree:
             if key < self.key_fn(node.key):
                 node = node.left
             elif key > self.key_fn(node.key):
-                if node.right:
+                if node.right and key >= self.key_fn(node.right.key):
                     node = node.right
                 else:
                     return node
