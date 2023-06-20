@@ -27,6 +27,15 @@ class TestNormalBST(unittest.TestCase):
             self.assertEqual(tree.search_le(-1), None)
             self.assertEqual(tree.search_le(i + 1).key, i) # pyright: ignore[reportOptionalMemberAccess]
 
+    def test_search_le_with_gap(self):
+        tree = Bst()
+        for i in range(0, 100, 2):
+            tree.insert(i)
+            self.assertEqual(tree.search_le(-1), None)
+            self.assertEqual(tree.search_le(i).key, i) # pyright: ignore[reportOptionalMemberAccess]
+            if i >= 2:
+                self.assertEqual(tree.search_le(i-1).key, i-2) # pyright: ignore[reportOptionalMemberAccess]
+
     def test_delete_ordered(self):
         tree = Bst()
         control = [i for i in range(100)]
