@@ -3,6 +3,7 @@ import random
 from pp_path_copying_bst import PartialPersistentBst as Bst
 from copy import copy
 
+
 class TestPPFatNodeBstInsert(unittest.TestCase):
     def test_insert_search(self):
         tree = Bst()
@@ -14,9 +15,9 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             control.append(i)
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i, version) 
+            node = tree.search(i, version)
             # print(f"version: {version}, insert: {i}, search get: {node}")
-            self.assertEqual(node.key, i) # pyright: ignore[reportOptionalMemberAccess]
+            self.assertEqual(node.key, i)  # pyright: ignore[reportOptionalMemberAccess]
             node = tree.search(i, version - 1)
             self.assertEqual(node, None)
 
@@ -78,13 +79,12 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             self.assertEqual(tree.search(key, version), None)
             self.assertEqual(tree.inorder(version), sorted(control_copy))
 
-
     def test_delete_all(self):
         tree = Bst()
         for i in range(100):
             tree.insert(i)
         self.assertEqual(tree.inorder(tree.get_latest_version()), [i for i in range(100)])
-        for i in reversed(range(100)): 
+        for i in reversed(range(100)):
             tree.delete(i)
         self.assertEqual(tree.inorder(tree.get_latest_version()), [])
         for i in range(100):
@@ -95,10 +95,10 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         tree = Bst()
         tree.insert(8)  # version 0
         tree.insert(3)  # version 1
-        tree.insert(10) # version 2
+        tree.insert(10)  # version 2
         tree.insert(1)  # version 3
         tree.insert(6)  # version 4
-        tree.insert(14) # version 5
+        tree.insert(14)  # version 5
         tree.insert(4)  # version 6
         tree.insert(7)  # version 7
         tree.delete(4)  # version 8
@@ -117,11 +117,11 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         self.assertEqual(tree.inorder(7), [1, 3, 4, 6, 7, 8, 10, 14])
 
         # check if the nodes deleted in the past still exists
-        self.assertEqual(tree.search(8, 7).key, 8) # pyright: ignore[reportOptionalMemberAccess]
-        self.assertEqual(tree.search(3, 7).key, 3) # pyright: ignore[reportOptionalMemberAccess]
-        self.assertEqual(tree.search(4, 7).key, 4) # pyright: ignore[reportOptionalMemberAccess]
-        self.assertEqual(tree.search(6, 7).key, 6) # pyright: ignore[reportOptionalMemberAccess]
-        
+        self.assertEqual(tree.search(8, 7).key, 8)  # pyright: ignore[reportOptionalMemberAccess]
+        self.assertEqual(tree.search(3, 7).key, 3)  # pyright: ignore[reportOptionalMemberAccess]
+        self.assertEqual(tree.search(4, 7).key, 4)  # pyright: ignore[reportOptionalMemberAccess]
+        self.assertEqual(tree.search(6, 7).key, 6)  # pyright: ignore[reportOptionalMemberAccess]
+
         # check if the nodes after the deletion don't exist
         self.assertEqual(tree.search(4, 8), None)
         self.assertEqual(tree.search(6, 9), None)
@@ -133,6 +133,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         self.assertEqual(tree.inorder(9), [1, 3, 7, 8, 10, 14])
         self.assertEqual(tree.inorder(10), [1, 7, 8, 10, 14])
         self.assertEqual(tree.inorder(11), [1, 7, 10, 14])
+
 
 if __name__ == '__main__':
     unittest.main()
