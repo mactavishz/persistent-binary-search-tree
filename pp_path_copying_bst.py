@@ -71,21 +71,24 @@ class PNode:
 
     def set(self, attr, new_val, version):
         # get the latest version of the node
-        while new_val and new_val.copy:
-            new_val = new_val.copy
+        # we always update on the latest version of the node
+        new_val = PNode.get_live_node(new_val)
         if version == self.version:
             self[attr] = new_val
             return
         elif version < self.version:
             return
         else:
+            # if there is a copy node, we update the copy node
+            # since copy node always has a newer version than the node itself
             if self.copy:
-                return self.copy.set(attr, new_val, version)
+                self.copy.set(attr, new_val, version)
+                return
             # if there's no copy node, we first check if there's still available space for new mods
             i = self.next_mod()
             if i != -1:  # if there's still available mods
                 self.mods[i] = Record(attr, new_val, version)
-            else:   # if there's no available space for new mods, we create a new node
+            else:  # if there's no available space for new mods, we create a new node
                 new_node = PNode(self.tree, self.key, version)
                 new_node.left = self.left
                 new_node.right = self.right
@@ -101,16 +104,15 @@ class PNode:
                 left = new_node.left
                 right = new_node.right
                 if left:
-                    while left.copy is not None:
-                        left = left.copy
+                    left = PNode.get_live_node(left)
                     left.parent = new_node
                 if right:
-                    while right.copy is not None:
-                        right = right.copy
+                    right = PNode.get_live_node(right)
                     right.parent = new_node
                 # add the new copy node to the update set
                 self.tree.update_sets.append(new_node)
                 return
+
     def get_mod(self, attr, version):
         mod_1 = self.mods[0]
         mod_2 = self.mods[1]
@@ -126,6 +128,12 @@ class PNode:
                     record = mod_2
         return record
 
+    @staticmethod
+    def get_live_node(node):
+        while node and node.copy:
+            node = node.copy
+        return node
+
 
 class PartialPersistentBst:
     def __init__(self):
@@ -138,23 +146,22 @@ class PartialPersistentBst:
     def update_pointers(self):
         while len(self.update_sets) > 0:
             node = self.update_sets.pop()
+            version = node.version
             parent = node.parent
-            # node is root node
+            # if node is the root of the tree
+            # we need to update the root pointer in the access array
             if parent is None:
-                if node.tree.get_latest_version() == node.version:
-                    node.tree.roots[node.version] = node
+                if node.tree.get_latest_version() == version:
+                    node.tree.roots[version] = node
                 else:
                     node.tree.roots.append(node)
                 continue
-            while parent and parent.copy:
-                parent = parent.copy
-            parent_l = parent.get("left", node.version)
-            while parent_l and parent_l.copy:
-                parent_l = parent_l.copy
+            parent = PNode.get_live_node(parent)
+            parent_l = PNode.get_live_node(parent.get("left", version))
             if parent_l == node:
-                parent.set("left", node, node.version)
+                parent.set("left", node, version)
             else:
-                parent.set("right", node, node.version)
+                parent.set("right", node, version)
 
     def insert(self, key):
         if len(self.roots) == 0:
@@ -235,18 +242,16 @@ class PartialPersistentBst:
             if tmp is not node_r:
                 tmp_r = tmp.get("right", version)
                 self._transplant(tmp, tmp_r, version)
-                while node and node.copy:
-                    node = node.copy
+                # node might be updated during the transplant and has potentially a new copy
+                # (if it does not have enough space to store the modification)
+                node = PNode.get_live_node(node)
                 tmp.set("right", node.get("right", version), version)
-                while tmp and tmp.copy:
-                    tmp = tmp.copy
+                tmp = PNode.get_live_node(tmp)
                 tmp.get("right", version).parent = tmp
             self._transplant(node, tmp, version)
-            while node and node.copy:
-                node = node.copy
+            node = PNode.get_live_node(node)
             tmp.set("left", node.get("left", version), version)
-            while tmp and tmp.copy:
-                tmp = tmp.copy
+            tmp = PNode.get_live_node(tmp)
             tmp.get("left", version).parent = tmp
 
     def _find_min(self, node, version):
@@ -276,9 +281,7 @@ class PartialPersistentBst:
             else:
                 old_parent.set("right", node, version)
         if node:
-            while old_parent and old_parent.copy:
-                old_parent = old_parent.copy
-            node.parent = old_parent
+            node.parent = PNode.get_live_node(old_parent)
 
     def inorder(self, version):
         result = []
