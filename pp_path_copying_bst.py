@@ -110,19 +110,6 @@ class PNode:
                     right.parent = new_node
                 # add the new copy node to the update set
                 self.tree.update_sets.append(new_node)
-                # update pointers
-                # parent: Optional[PNode] = new_node.parent
-                # if parent:
-                #     if parent.get("left", version) == self:
-                #         parent.set("left", new_node, version)
-                #     else:
-                #         parent.set("right", new_node, version)
-                # else:
-                #     # if the old node is the root node
-                #     if self.tree.get_latest_version() == version:
-                #         self.tree.roots[version] = new_node
-                #     else:
-                #         self.tree.roots.append(new_node)
                 return
     def get_mod(self, attr, version):
         mod_1 = self.mods[0]
