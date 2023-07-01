@@ -9,9 +9,10 @@ class BstNode:
         return f"Node({self.key})"
  
 class BinarySearchTree:
-    def __init__(self, key_fn=None):
+    def __init__(self, key_fn=None, compare_fn=None):
         self.root = None
         self.key_fn = key_fn if key_fn else lambda x: x
+        self.compare_fn = compare_fn if compare_fn else lambda x, y: x - y
  
     def insert(self, key):
         if not self.root:
@@ -23,9 +24,9 @@ class BinarySearchTree:
         root, parent = self.root, None 
         while root:
             parent = root
-            if self.key_fn(node.key) < self.key_fn(root.key):
+            if self.compare_fn(self.key_fn(node.key), self.key_fn(root.key)) < 0:
                 root = root.left
-            elif self.key_fn(node.key) > self.key_fn(root.key):
+            elif self.compare_fn(self.key_fn(node.key), self.key_fn(root.key)) > 0:
                 root = root.right
             else:
                 # print("Key already exists in the tree.")
@@ -33,7 +34,7 @@ class BinarySearchTree:
 
         node.parent = parent
         assert parent is not None
-        if self.key_fn(node.key) < self.key_fn(parent.key):
+        if self.compare_fn(self.key_fn(node.key), self.key_fn(parent.key)) < 0:
             parent.left = node
         else:
             parent.right = node
@@ -46,9 +47,9 @@ class BinarySearchTree:
  
     def _search(self, key, node):
         while node:
-            if key < self.key_fn(node.key):
+            if self.compare_fn(key, self.key_fn(node.key)) < 0:
                 node = node.left
-            elif key > self.key_fn(node.key):
+            elif self.compare_fn(key, self.key_fn(node.key)) > 0:
                 node = node.right
             else:
                 return node
@@ -62,10 +63,10 @@ class BinarySearchTree:
 
     def _search_le(self, key, node):
         while node:
-            if key < self.key_fn(node.key):
+            if self.compare_fn(key, self.key_fn(node.key)) < 0:
                 node = node.left
-            elif key > self.key_fn(node.key):
-                if node.right and key >= self.key_fn(node.right.key):
+            elif self.compare_fn(key, self.key_fn(node.key)) > 0:
+                if node.right and self.compare_fn(key, self.key_fn(node.right.key)) >= 0:
                     node = node.right
                 else:
                     return node
