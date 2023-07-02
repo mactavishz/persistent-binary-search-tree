@@ -12,15 +12,19 @@ class OrderedNode:
         self.next: OrderedNode | None = None
         self.label = -1
         self.value = value
+        self._sentinel = False
 
     def __str__(self):
-        return f"Node(val: {self.value}, label: {self.label})"
+        return f"OrderedNode(val: {self.value}, label: {self.label})"
 
     def __eq__(self, other):
         return self.label == other.label
 
     def __lt__(self, other):
         return self.label < other.label
+    
+    def is_sentinel(self):
+        return self._sentinel
 
 
 class OrderedList:
@@ -36,8 +40,10 @@ class OrderedList:
         # base represents the end and the beginning of the list
         self.base = OrderedNode("base")
         self.base.label = 0
+        self.base._sentinel = True
         self.end = OrderedNode("end")
         self.end.label = M
+        self.end._sentinel = True
         self.base.next = self.end
         self.end.prev = self.base
         self._n = 0
@@ -63,7 +69,7 @@ class OrderedList:
             yield curr.value
             curr = curr.next
 
-    def insert(self, x, y=None):
+    def insert(self, x, y=None) -> OrderedNode:
         if y is None:
             y = x
             x = self.base
@@ -86,8 +92,18 @@ class OrderedList:
             x.next.prev = x.prev
             self._n -= 1
 
-    def order(self, x, y):
+    def order(self, x, y) -> bool:
         return x.label < y.label
+
+    def get_first(self) -> OrderedNode | None:
+        if len(self) == 0:
+            return None
+        return self.base.next
+
+    def get_last(self) -> OrderedNode | None:
+        if len(self) == 0:
+            return None
+        return self.end.prev
 
     # private method
     def _relabel(self):
