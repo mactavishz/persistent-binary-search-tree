@@ -6,7 +6,7 @@ class BstNode:
         self.key = key
 
     def __str__(self):
-        return f"Node({self.key})"
+        return f"BstNode({self.key})"
  
 class BinarySearchTree:
     def __init__(self, key_fn=None, compare_fn=None):
@@ -72,6 +72,28 @@ class BinarySearchTree:
                     return node
             else:
                 return node
+        return None
+
+    def search_gt(self, key):
+        if not self.root:
+            return None
+        else:
+            return self._search_gt(key, self.root)
+
+    def _search_gt(self, key, node):
+        while node:
+            if self.compare_fn(key, self.key_fn(node.key)) > 0:
+                node = node.right
+            elif self.compare_fn(key, self.key_fn(node.key)) < 0:
+                if node.left and self.compare_fn(key, self.key_fn(node.left.key)) < 0:
+                    node = node.left
+                else:
+                    return node
+            else:
+                if node.parent and self.compare_fn(key, self.key_fn(node.parent.key)) < 0:
+                    return node.parent
+                else:
+                    return node.right
         return None
 
     def delete(self, key):
