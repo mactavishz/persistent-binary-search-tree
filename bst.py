@@ -62,17 +62,17 @@ class BinarySearchTree:
             return self._search_le(key, self.root)
 
     def _search_le(self, key, node):
+        result = self.search(key)
+        if result:
+            return result
         while node:
             if self.compare_fn(key, self.key_fn(node.key)) < 0:
                 node = node.left
             elif self.compare_fn(key, self.key_fn(node.key)) > 0:
-                if node.right and self.compare_fn(key, self.key_fn(node.right.key)) >= 0:
+                if node.right and self.compare_fn(key, self.key_fn(node.right.key)) > 0:
                     node = node.right
                 else:
                     return node
-            else:
-                return node
-        return None
 
     def search_gt(self, key):
         if not self.root:

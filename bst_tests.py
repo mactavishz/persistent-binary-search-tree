@@ -27,6 +27,17 @@ class TestNormalBST(unittest.TestCase):
             self.assertEqual(tree.search_le(-1), None)
             self.assertEqual(tree.search_le(i + 1).key, i) # pyright: ignore[reportOptionalMemberAccess]
 
+        # check if the key is in the tree
+        for i in range(0, 99):
+            self.assertEqual(tree.search_le(i).key, i) # pyright: ignore[reportOptionalMemberAccess]
+
+        tree = Bst()
+        for i in range(0, 100, 2):
+            tree.insert(i)
+
+        for i in range(1, 99, 2):
+            self.assertEqual(tree.search_le(i).key, i - 1)
+
     def test_search_gt(self):
         tree = Bst()
         self.assertEqual(tree.search_gt(1), None)
