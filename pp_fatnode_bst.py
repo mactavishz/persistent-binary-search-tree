@@ -4,6 +4,7 @@ from collections import namedtuple
 Record = namedtuple('VField', ('field', 'value', 'version'))
 
 class FatNode:
+    key = lambda t: t.version
     def __init__(self, key, version):
         """
         We require that the key will never change, so we don't need to keep track of
@@ -14,26 +15,21 @@ class FatNode:
         self.right = None
         self.parent = None
         self.key = key
-        self.key_fn = lambda t: t.version
-        self._vleft = Bst(self.key_fn)
-        self._vright = Bst(self.key_fn)
-        self._vparent = Bst(self.key_fn)
+        self._vleft = Bst(FatNode.key)
+        self._vright = Bst(FatNode.key)
+        self._vparent = Bst(FatNode.key)
 
     def __str__(self):
-        return f"Node({self.key})"
+        return f"FatNode(key: {self.key}, version: {self.version})"
 
     def __getitem__(self, attr):
         match attr:
-            case "key":
-                return self.key
             case "left":
                 return self.left
             case "right":
                 return self.right
             case "parent":
                 return self.parent
-            case "version":
-                return self.version
 
     def __setitem__(self, attr, new_val):
         match attr:

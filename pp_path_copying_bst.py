@@ -24,7 +24,7 @@ class PNode:
         self.copy = None
 
     def __str__(self):
-        return f"Node({self.key}), Version: {self.version}"
+        return f"PNode(key: {self.key}), version: {self.version}"
 
     def next_mod(self):
         if self.mods[0] == self.mods[1] == None:

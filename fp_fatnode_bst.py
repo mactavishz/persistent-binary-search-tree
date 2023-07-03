@@ -24,20 +24,16 @@ class FatNode:
         self._vparent = Bst(FatNode.key, FatNode.compare)
 
     def __str__(self):
-        return f"FatNode({self.key})"
+        return f"FatNode(key: {self.key}, version: {self.version})"
 
     def __getitem__(self, attr):
         match attr:
-            case "key":
-                return self.key
             case "left":
                 return self.left
             case "right":
                 return self.right
             case "parent":
                 return self.parent
-            case "version":
-                return self.version
 
     def __setitem__(self, attr, new_val):
         match attr:
@@ -114,6 +110,9 @@ class RootNode:
     def __init__(self, next: FatNode, version: OrderedNode):
         self.next = next
         self.version = version
+
+    def __str__(self):
+        return f"RootNode(next: {self.next}, version: {self.version})"
 
 
 class FullPersistentBst:
