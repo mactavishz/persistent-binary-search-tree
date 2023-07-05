@@ -3,7 +3,7 @@ import random
 from pp_fatnode_bst import PartialPersistentBst as Bst
 from copy import copy
 
-class TestPPFatNodeBstInsert(unittest.TestCase):
+class TestPPFatNodeBst(unittest.TestCase):
     def test_insert_search(self):
         tree = Bst()
         control = [i for i in range(100)]
