@@ -26,13 +26,23 @@ class PNode:
     def __str__(self):
         return f"PNode(key: {self.key}), version: {self.version}"
 
-    def next_mod(self):
-        if self.mods[0] == self.mods[1] == None:
+    def next_mod(self, attr, version):
+        if self.mods[0] is None and self.mods[1] is None:
             return 0
-        elif self.mods[0] is not None and self.mods[1] is None:
+
+        mod1 = self.mods[0]
+        mod2 = self.mods[1]
+
+        if mod1 and mod1.field == attr and mod1.version == version:
+            return 0
+
+        if mod2 is None:
             return 1
         else:
-            return -1
+            if mod2.field == attr and mod2.version == version:
+                return 1
+            else:
+                return -1
 
     def __getitem__(self, attr):
         match attr:
@@ -85,7 +95,7 @@ class PNode:
                 self.copy.set(attr, new_val, version)
                 return
             # if there's no copy node, we first check if there's still available space for new mods
-            i = self.next_mod()
+            i = self.next_mod(attr, version)
             if i != -1:  # if there's still available mods
                 self.mods[i] = Record(attr, new_val, version)
             else:  # if there's no available space for new mods, we create a new node
@@ -164,18 +174,30 @@ class PartialPersistentBst:
                 parent.set("right", node, version)
 
     def insert(self, key):
+        nodes = []
+        version = None
+        # handle the case where we insert a list of nodes
+        if type(key) is list:
+            nodes = key
+        else:
+            nodes = [key]
         if len(self.roots) == 0:
-            self.roots.append(PNode(self, key, 0))
+            version = 0
+            self.roots.append(PNode(self, nodes[0], version))
+            nodes = nodes[1:]
         else:
             version = self.get_latest_version() + 1
             last_root = self.roots[-1]
             # if the latest version gives us an empty tree
             # we need to create a new root node
             if last_root is None:
-                self.roots.append(PNode(self, key, version))
+                self.roots.append(PNode(self, nodes[0], version))
+                nodes = nodes[1:]
             else:
                 self.roots.append(last_root)
-                self._insert(PNode(self, key, version), version)
+        # insert the rest of the nodes
+        for k in nodes:
+            self._insert(PNode(self, k, version), version)
             self.update_pointers()
 
     def _insert(self, node, version):
@@ -198,7 +220,9 @@ class PartialPersistentBst:
         else:
             parent.set("right", node, version)
 
-    def search(self, key, version):
+    def search(self, key, version=None):
+        if version is None:
+            version = self.get_latest_version()
         if version < 0 or self.get_latest_version() == -1:
             return None
         else:
@@ -217,17 +241,25 @@ class PartialPersistentBst:
         return None
 
     def delete(self, key):
-        if len(self.roots) == 0:
+        nodes = []
+        version = None
+        # handle the case where we delete a list of nodes
+        if type(key) is list:
+            nodes = key
+        else:
+            nodes = [key]
+        if len(self.roots) == 0 or key is None or len(nodes) == 0:
             return
         else:
             version = self.get_latest_version() + 1
-            node = self.search(key, version)
-            if node:
-                self._delete(node, version)
-                # if the root was not changed, we just copy the last root
-                if version != self.get_latest_version():
-                    self.roots.append(self.roots[-1])
-            self.update_pointers()
+            for k in nodes:
+                node = self.search(k, version)
+                if node:
+                    self._delete(node, version)
+                    # if the root was not changed, we just copy the last root
+                    if version != self.get_latest_version():
+                        self.roots.append(self.roots[-1])
+                    self.update_pointers()
 
     def _delete(self, node, version):
         node_l = node.get("left", version)
@@ -273,7 +305,10 @@ class PartialPersistentBst:
     def _transplant(self, old, node, version):
         old_parent = old.parent
         if not old_parent:
-            self.roots.append(node)
+            if version != self.get_latest_version():
+                self.roots.append(node)
+            else:
+                self.roots[-1] = node
         else:
             old_parent_l = old_parent.get("left", version)
             if old == old_parent_l:
@@ -283,9 +318,12 @@ class PartialPersistentBst:
         if node:
             node.parent = PNode.get_live_node(old_parent)
 
-    def inorder(self, version):
+    def inorder(self, version=None):
         result = []
-        version = min(version, self.get_latest_version())
+        if version is not None:
+            version = min(version, self.get_latest_version())
+        else:
+            version = self.get_latest_version()
         if version < 0:
             return result
         else:
