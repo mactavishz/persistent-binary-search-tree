@@ -128,7 +128,9 @@ class PartialPersistentBst:
         else:
             parent.set("right", node, version)
  
-    def search(self, key, version):
+    def search(self, key, version=None):
+        if version is None:
+            version = self.get_latest_version()
         if version < 0 or self.get_latest_version() == -1:
             return None
         else:
@@ -214,9 +216,12 @@ class PartialPersistentBst:
         if node:
             node.set("parent", old_parent, version)
 
-    def inorder(self, version):
+    def inorder(self, version=None):
         result = []
-        version = min(version, self.get_latest_version())
+        if version is not None:
+            version = min(version, self.get_latest_version())
+        else:
+            version = self.get_latest_version()
         if version < 0:
             return result
         else:

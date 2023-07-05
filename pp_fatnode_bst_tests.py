@@ -11,7 +11,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         for i in control:
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i, version) 
+            node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
             self.assertEqual(node.key, i)
             node = tree.search(i, version - 1)
@@ -27,7 +27,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         for i in control[:k1]:
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i, version) 
+            node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
             self.assertEqual(node.key, i)
             node = tree.search(i, version - 1)
@@ -36,7 +36,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         tree.insert(control[k1:k2])
         version = tree.get_latest_version()
         for i in control[k1:k2]:
-            node = tree.search(i, version) 
+            node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
             self.assertEqual(node.key, i)
             node = tree.search(i, version - 1)
@@ -45,7 +45,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         for i in control[k2:]:
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i, version) 
+            node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
             self.assertEqual(node.key, i)
             node = tree.search(i, version - 1)
@@ -61,7 +61,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             tree.insert(i)
             version = tree.get_latest_version()
             # print(f"insert: {i}, latest version: {version}")
-            sorted_list = tree.inorder(version)
+            sorted_list = tree.inorder()
             self.assertEqual(sorted_list, sorted(list(compare_list)))
             sorted_list = tree.inorder(version - 1)
             self.assertNotEqual(sorted_list, sorted(list(compare_list)))
@@ -75,8 +75,7 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             tree.insert(i)
             version = tree.get_latest_version()
             # print(f"version: {version}, insert: {i}")
-        version = tree.get_latest_version()
-        self.assertEqual(tree.inorder(version), sorted(control))
+        self.assertEqual(tree.inorder(), sorted(control))
 
         copy_control = copy(control)
         for key in control:
@@ -84,9 +83,9 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             copy_control.remove(key)
             version = tree.get_latest_version()
             # print(f"version: {version}, delete: {key}")
-            node = tree.search(key, version)
+            node = tree.search(key)
             self.assertEqual(node, None)
-            self.assertEqual(tree.inorder(version), sorted(copy_control))
+            self.assertEqual(tree.inorder(), sorted(copy_control))
         
     def test_delete_random(self):
         tree = Bst()
@@ -99,9 +98,8 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         for key in control:
             tree.delete(key)
             control_copy.remove(key)
-            version = tree.get_latest_version()
-            self.assertEqual(tree.search(key, version), None)
-            self.assertEqual(tree.inorder(version), sorted(control_copy))
+            self.assertEqual(tree.search(key), None)
+            self.assertEqual(tree.inorder(), sorted(control_copy))
 
     def test_delete_multi(self):
         tree = Bst()
@@ -113,15 +111,12 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
         # insert all elements one by one
         for i in control:
             tree.insert(i)
-        version = tree.get_latest_version()
-        self.assertEqual(tree.inorder(version), sorted(control))
+        self.assertEqual(tree.inorder(), sorted(control))
         # delete the first k1 elements one by one
         for i in control[:k1]:
             tree.delete(i)
-            version = tree.get_latest_version()
-            self.assertEqual(tree.search(i, version), None)
-        version = tree.get_latest_version()
-        self.assertEqual(tree.inorder(version), sorted(control[k1:]))
+            self.assertEqual(tree.search(i), None)
+        self.assertEqual(tree.inorder(), sorted(control[k1:]))
         # delete the k1-k2 elements in one go
         tree.delete(control[k1:k2])
         version = tree.get_latest_version()
@@ -130,19 +125,19 @@ class TestPPFatNodeBstInsert(unittest.TestCase):
             # the elements deleted in this batch should remain in the previous version
             self.assertEqual(tree.search(i, version - 1).key, i)
         # the rest elements should remain
-        self.assertEqual(tree.inorder(version), sorted(control[k2:]))
+        self.assertEqual(tree.inorder(), sorted(control[k2:]))
 
     def test_delete_all(self):
         tree = Bst()
         for i in range(100):
             tree.insert(i)
-        self.assertEqual(tree.inorder(tree.get_latest_version()), [i for i in range(100)])
+        self.assertEqual(tree.inorder(), [i for i in range(100)])
         for i in reversed(range(100)): 
             tree.delete(i)
-        self.assertEqual(tree.inorder(tree.get_latest_version()), [])
+        self.assertEqual(tree.inorder(), [])
         for i in range(100):
             tree.insert(i)
-        self.assertEqual(tree.inorder(tree.get_latest_version()), [i for i in range(100)])
+        self.assertEqual(tree.inorder(), [i for i in range(100)])
 
     def test_manual_random(self):
         tree = Bst()
