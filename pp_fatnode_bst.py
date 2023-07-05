@@ -69,11 +69,11 @@ class FatNode:
         else:
             match attr:
                 case "left":
-                    self._vleft.insert(Record("left", new_val, version))
+                    self._vleft.insert(Record("left", new_val, version), overwrite=True)
                 case "right":
-                    self._vright.insert(Record("right", new_val, version))
+                    self._vright.insert(Record("right", new_val, version), overwrite=True)
                 case "parent":
-                    self._vparent.insert(Record("parent", new_val, version))
+                    self._vparent.insert(Record("parent", new_val, version), overwrite=True)
  
 class PartialPersistentBst:
     def __init__(self):
@@ -83,18 +83,30 @@ class PartialPersistentBst:
         return len(self.roots) - 1
  
     def insert(self, key):
+        nodes = []
+        version = None
+        # handle the case where we insert a list of nodes
+        if type(key) is list:
+            nodes = key
+        else:
+            nodes = [key]
         if len(self.roots) == 0:
-            self.roots.append(FatNode(key, 0))
+            version = 0
+            self.roots.append(FatNode(nodes[0], version))
+            nodes = nodes[1:]
         else:
             version = self.get_latest_version() + 1
             last_root = self.roots[-1]
             # if the latest version gives us an empty tree
             # we need to create a new root node
             if last_root is None:
-                self.roots.append(FatNode(key, version))
+                self.roots.append(FatNode(nodes[0], version))
+                nodes = nodes[1:]
             else:
                 self.roots.append(last_root)
-                self._insert(FatNode(key, version), version)
+        # insert the rest of the nodes
+        for k in nodes:
+            self._insert(FatNode(k, version), version)
  
     def _insert(self, node, version):
         root = self.roots[version]
@@ -135,16 +147,24 @@ class PartialPersistentBst:
         return None
  
     def delete(self, key):
-        if len(self.roots) == 0:
+        nodes = []
+        version = None
+        # handle the case where we delete a list of nodes
+        if type(key) is list:
+            nodes = key
+        else:
+            nodes = [key]
+        if len(self.roots) == 0 or key is None or len(nodes) == 0:
             return
         else:
             version = self.get_latest_version() + 1
-            node = self.search(key, version) 
-            if node:
-                self._delete(node, version)
-                # if the root was not changed, we just copy the last root
-                if version != self.get_latest_version():
-                    self.roots.append(self.roots[-1])
+            for k in nodes:
+                node = self.search(k, version) 
+                if node:
+                    self._delete(node, version)
+                    # if the root was not changed, we just copy the last root
+                    if version != self.get_latest_version():
+                        self.roots.append(self.roots[-1])
  
     def _delete(self, node, version):
         node_l = node.get("left", version)
@@ -183,7 +203,10 @@ class PartialPersistentBst:
     def _transplant(self, old, node, version):
         old_parent = old.get("parent", version)
         if not old_parent:
-            self.roots.append(node)
+            if version != self.get_latest_version():
+                self.roots.append(node)
+            else:
+                self.roots[-1] = node
         elif old == old_parent.get("left", version):
             old_parent.set("left", node, version)
         else:
