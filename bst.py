@@ -14,13 +14,13 @@ class BinarySearchTree:
         self.key_fn = key_fn if key_fn else lambda x: x
         self.compare_fn = compare_fn if compare_fn else lambda x, y: x - y
  
-    def insert(self, key):
+    def insert(self, key, overwrite=False):
         if not self.root:
             self.root = BstNode(key)
         else:
-            self._insert(BstNode(key))
+            self._insert(BstNode(key), overwrite=overwrite)
  
-    def _insert(self, node):
+    def _insert(self, node, overwrite=False):
         root, parent = self.root, None 
         while root:
             parent = root
@@ -29,7 +29,9 @@ class BinarySearchTree:
             elif self.compare_fn(self.key_fn(node.key), self.key_fn(root.key)) > 0:
                 root = root.right
             else:
-                # print("Key already exists in the tree.")
+                if overwrite:
+                    root.key = node.key
+                # print(f"Key: {root.key} already exists in the tree.")
                 return
 
         node.parent = parent
