@@ -1,17 +1,19 @@
-import unittest
 from random import randint
-from ordered_list import OrderedList, OrderedNode
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
+from lib.ordered_list import OrderedList, OrderedNode
 
-class TestOrderedList(unittest.TestCase):
+class TestOrderedList:
     def check_list_order(self, l):
         for i in range(len(l)):
             curr = l[i]
             # print(f"{curr} and {curr.next}")
-            self.assertTrue(curr.prev < curr)
-            self.assertTrue(curr < curr.next)
-            self.assertTrue(l.order(curr.prev, curr))
-            self.assertTrue(l.order(curr, curr.next))
+            assert curr.prev < curr
+            assert curr < curr.next
+            assert l.order(curr.prev, curr)
+            assert l.order(curr, curr.next)
 
     def test_ordered_inserts(self):
         l = OrderedList()
@@ -21,8 +23,8 @@ class TestOrderedList(unittest.TestCase):
             curr = OrderedNode(f"v{i}")
             # print(f"#{i} inserting {curr.value}")
             prev = l.insert(l.base, curr)
-            self.assertEqual(len(l), i + 1)
-            self.assertEqual(l[0], prev)
+            assert len(l) == i + 1
+            assert l[0] == prev
 
         self.check_list_order(l)
 
@@ -32,7 +34,7 @@ class TestOrderedList(unittest.TestCase):
             curr = l[rand]
             # print(f"deleting {curr}")
             l.delete(curr)
-            self.assertEqual(len(l), 1000 - i - 1)
+            assert len(l) == 1000 - i - 1
 
         # check that the list is still ordered
         self.check_list_order(l)
@@ -50,8 +52,8 @@ class TestOrderedList(unittest.TestCase):
                 prev = l[rand]
             # print(f"#{i} inserting {curr.value}")
             prev = l.insert(prev, curr)
-            self.assertEqual(len(l), i + 1)
-            self.assertEqual(curr, prev)
+            assert len(l) == i + 1
+            assert curr == prev
 
         self.check_list_order(l)
 
@@ -61,7 +63,7 @@ class TestOrderedList(unittest.TestCase):
             curr = l[rand]
             # print(f"deleting {curr}")
             l.delete(curr)
-            self.assertEqual(len(l), 1000 - i - 1)
+            assert len(l) == 1000 - i - 1
 
         # check that the list is still ordered
         self.check_list_order(l)
@@ -82,19 +84,15 @@ class TestOrderedList(unittest.TestCase):
         v5 = l.insert(v4, v5)
         v7 = l.insert(v4, v7)
         v6 = l.insert(v3, v6)
-        self.assertEqual(["v1", "v4", "v7", "v5", "v3", "v6", "v2"], list(l))
-        self.assertEqual(len(l), 7)
-        self.assertTrue(l.order(l.base, v1))
-        self.assertTrue(l.order(v2, l.end))
-        self.assertTrue(l.order(v1, v2))
-        self.assertTrue(l.order(v1, v3))
-        self.assertTrue(l.order(v1, v4))
-        self.assertFalse(l.order(v3, v5))
-        self.assertFalse(l.order(v6, v7))
-        self.assertFalse(l.order(v5, v7))
-        self.assertFalse(l.order(v2, v4))
+        assert ["v1", "v4", "v7", "v5", "v3", "v6", "v2"] == list(l)
+        assert len(l) == 7
+        assert l.order(l.base, v1)
+        assert l.order(v2, l.end)
+        assert l.order(v1, v2)
+        assert l.order(v1, v3)
+        assert l.order(v1, v4)
+        assert not l.order(v3, v5)
+        assert not l.order(v6, v7)
+        assert not l.order(v5, v7)
+        assert not l.order(v2, v4)
         self.check_list_order(l)
-
-
-if __name__ == '__main__':
-    unittest.main()

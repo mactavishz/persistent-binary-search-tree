@@ -1,4 +1,4 @@
-from bst import BinarySearchTree as Bst
+from ..binary_search_tree import BinarySearchTree as Bst
 from collections import namedtuple
 
 Record = namedtuple('VField', ('field', 'value', 'version'))

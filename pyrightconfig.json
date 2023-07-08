@@ -2,7 +2,6 @@
     "venvPath": ".",
     "venv": ".venv",
     "ignore": [
-        "**/*test.py",
-        "**/*tests.py"
+        "tests"
     ]
 }

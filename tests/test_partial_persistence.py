@@ -1,11 +1,16 @@
-import unittest
+import pytest
 import random
-from pp_path_copying_bst import PartialPersistentBst as Bst
+import os
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from lib.partial_persistence.pp_fatnode_bst import PartialPersistentBst as FatNodeBst 
+from lib.partial_persistence.pp_path_copying_bst import PartialPersistentBst as PathCopyingBst
 from copy import copy
 
-
-class TestPPPathCopyingBst(unittest.TestCase):
-    def test_insert_search(self):
+@pytest.mark.parametrize("Bst", [FatNodeBst, PathCopyingBst])
+class TestPartialPersistence:
+    def test_insert_search(self, Bst):
         tree = Bst()
         control = [i for i in range(100)]
         control = random.sample(control, len(control))
@@ -14,11 +19,11 @@ class TestPPPathCopyingBst(unittest.TestCase):
             version = tree.get_latest_version()
             node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
-            self.assertEqual(node.key, i)
+            assert node.key == i
             node = tree.search(i, version - 1)
-            self.assertEqual(node, None)
+            assert node is None
 
-    def test_insert_multi_search(self):
+    def test_insert_multi_search(self, Bst):
         tree = Bst()
         control = [i for i in range(100)]
         control = random.sample(control, len(control))
@@ -30,29 +35,29 @@ class TestPPPathCopyingBst(unittest.TestCase):
             version = tree.get_latest_version()
             node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
-            self.assertEqual(node.key, i)
+            assert node.key == i
             node = tree.search(i, version - 1)
-            self.assertEqual(node, None)
+            assert node is None
         # insert the k1-k2 elements in one go
         tree.insert(control[k1:k2])
         version = tree.get_latest_version()
         for i in control[k1:k2]:
             node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
-            self.assertEqual(node.key, i)
+            assert node.key == i
             node = tree.search(i, version - 1)
-            self.assertEqual(node, None)
+            assert node is None
         # insert the rest elements one by one
         for i in control[k2:]:
             tree.insert(i)
             version = tree.get_latest_version()
             node = tree.search(i) 
             # print(f"version: {version}, insert: {i}, search get: {node}")
-            self.assertEqual(node.key, i)
+            assert node.key == i
             node = tree.search(i, version - 1)
-            self.assertEqual(node, None)
+            assert node is None
 
-    def test_inorder(self):
+    def test_inorder(self, Bst):
         tree = Bst()
         control = [i for i in range(100)]
         control = random.sample(control, len(control))
@@ -63,11 +68,11 @@ class TestPPPathCopyingBst(unittest.TestCase):
             version = tree.get_latest_version()
             # print(f"insert: {i}, latest version: {version}")
             sorted_list = tree.inorder()
-            self.assertEqual(sorted_list, sorted(list(compare_list)))
+            assert sorted_list == sorted(list(compare_list))
             sorted_list = tree.inorder(version - 1)
-            self.assertNotEqual(sorted_list, sorted(list(compare_list)))
+            assert sorted_list != sorted(list(compare_list))
 
-    def test_delete_ordered(self):
+    def test_delete_ordered(self, Bst):
         tree = Bst()
         control = []
         control = [i for i in range(100)]
@@ -76,7 +81,7 @@ class TestPPPathCopyingBst(unittest.TestCase):
             tree.insert(i)
             version = tree.get_latest_version()
             # print(f"version: {version}, insert: {i}")
-        self.assertEqual(tree.inorder(), sorted(control))
+        assert tree.inorder() == sorted(control)
 
         copy_control = copy(control)
         for key in control:
@@ -85,10 +90,10 @@ class TestPPPathCopyingBst(unittest.TestCase):
             version = tree.get_latest_version()
             # print(f"version: {version}, delete: {key}")
             node = tree.search(key)
-            self.assertEqual(node, None)
-            self.assertEqual(tree.inorder(), sorted(copy_control))
+            assert node is None
+            assert tree.inorder() == sorted(copy_control)
         
-    def test_delete_random(self):
+    def test_delete_random(self, Bst):
         tree = Bst()
         control = [i for i in range(100)]
         control = random.sample(control, len(control))
@@ -99,10 +104,10 @@ class TestPPPathCopyingBst(unittest.TestCase):
         for key in control:
             tree.delete(key)
             control_copy.remove(key)
-            self.assertEqual(tree.search(key), None)
-            self.assertEqual(tree.inorder(), sorted(control_copy))
+            assert tree.search(key) is None
+            assert tree.inorder() == sorted(control_copy)
 
-    def test_delete_multi(self):
+    def test_delete_multi(self, Bst):
         tree = Bst()
         control = [i for i in range(100)]
         control = random.sample(control, len(control))
@@ -111,36 +116,36 @@ class TestPPPathCopyingBst(unittest.TestCase):
         k2 = random.randint(k1, 75)
         for i in control:
             tree.insert(i)
-        self.assertEqual(tree.inorder(), sorted(control))
+        assert tree.inorder() == sorted(control)
         # delete the first k1 elements one by one
         for i in control[:k1]:
             tree.delete(i)
-            self.assertEqual(tree.search(i), None)
-        self.assertEqual(tree.inorder(), sorted(control[k1:]))
+            assert tree.search(i) is None
+        assert tree.inorder() == sorted(control[k1:])
         # delete the k1-k2 elements in one go
         tree.delete(control[k1:k2])
         version = tree.get_latest_version()
         for i in control[k1:k2]:
-            self.assertEqual(tree.search(i, version), None)
+            assert tree.search(i, version) is None
             # the elements deleted in this batch should remain in the previous version
-            self.assertEqual(tree.search(i, version - 1).key, i)
+            assert tree.search(i, version - 1).key == i
         # the rest elements should remain
-        self.assertEqual(tree.inorder(), sorted(control[k2:]))
+        assert tree.inorder() == sorted(control[k2:])
 
-    def test_delete_all(self):
+    def test_delete_all(self, Bst):
         tree = Bst()
         for i in range(100):
             tree.insert(i)
-        self.assertEqual(tree.inorder(), [i for i in range(100)])
+        assert tree.inorder() == [i for i in range(100)]
         for i in reversed(range(100)): 
             tree.delete(i)
-        self.assertEqual(tree.inorder(), [])
+        assert tree.inorder() == []
         for i in range(100):
             tree.insert(i)
-        self.assertEqual(tree.inorder(), [i for i in range(100)])
+        assert tree.inorder() == [i for i in range(100)]
 
 
-    def test_manual_random(self):
+    def test_manual_random(self, Bst):
         tree = Bst()
         tree.insert([8, 3, 10])  # version 0
         tree.insert(1)  # version 1
@@ -156,48 +161,45 @@ class TestPPPathCopyingBst(unittest.TestCase):
         tree.insert(1) # version 11
 
         # check if the nodes are inserted correctly
-        self.assertEqual(tree.inorder(0), [3, 8, 10])
-        self.assertEqual(tree.inorder(1), [1, 3, 8, 10])
-        self.assertEqual(tree.inorder(2), [1, 3, 6, 8, 10])
-        self.assertEqual(tree.inorder(3), [1, 3, 4, 6, 8, 10, 14])
-        self.assertEqual(tree.inorder(4), [1, 3, 4, 6, 7, 8, 10, 14])
+        assert tree.inorder(0) == [3, 8, 10]
+        assert tree.inorder(1) == [1, 3, 8, 10]
+        assert tree.inorder(2) == [1, 3, 6, 8, 10]
+        assert tree.inorder(3) == [1, 3, 4, 6, 8, 10, 14]
+        assert tree.inorder(4) == [1, 3, 4, 6, 7, 8, 10, 14]
 
         # check if the nodes deleted in the past still exists
-        self.assertEqual(tree.search(8, 4).key, 8)
-        self.assertEqual(tree.search(3, 4).key, 3)
-        self.assertEqual(tree.search(4, 4).key, 4)
-        self.assertEqual(tree.search(6, 4).key, 6)
-        self.assertEqual(tree.search(0, 9).key, 0)
-        self.assertEqual(tree.search(1, 9).key, 1)
-        self.assertEqual(tree.search(2, 9).key, 2)
-        self.assertEqual(tree.search(5, 9).key, 5)
-        self.assertEqual(tree.search(7, 9).key, 7)
-        self.assertEqual(tree.search(10, 9).key, 10)
-        self.assertEqual(tree.search(14, 9).key, 14)
+        assert tree.search(8, 4).key == 8
+        assert tree.search(3, 4).key == 3
+        assert tree.search(4, 4).key == 4
+        assert tree.search(6, 4).key == 6
+        assert tree.search(0, 9).key == 0
+        assert tree.search(1, 9).key == 1
+        assert tree.search(2, 9).key == 2
+        assert tree.search(5, 9).key == 5
+        assert tree.search(7, 9).key == 7
+        assert tree.search(10, 9).key == 10
+        assert tree.search(14, 9).key == 14
         
         # check if the nodes after the deletion don't exist
-        self.assertEqual(tree.search(4, 5), None)
-        self.assertEqual(tree.search(6, 6), None)
-        self.assertEqual(tree.search(3, 6), None)
-        self.assertEqual(tree.search(8, 7), None)
-        self.assertEqual(tree.search(0, 10), None)
-        self.assertEqual(tree.search(1, 10), None)
-        self.assertEqual(tree.search(2, 10), None)
-        self.assertEqual(tree.search(5, 10), None)
-        self.assertEqual(tree.search(7, 10), None)
-        self.assertEqual(tree.search(10, 10), None)
-        self.assertEqual(tree.search(14, 10), None)
+        assert tree.search(4, 5) is None
+        assert tree.search(6, 6) is None
+        assert tree.search(3, 6) is None
+        assert tree.search(8, 7) is None
+        assert tree.search(0, 10) is None
+        assert tree.search(1, 10) is None
+        assert tree.search(2, 10) is None
+        assert tree.search(5, 10) is None
+        assert tree.search(7, 10) is None
+        assert tree.search(10, 10) is None
+        assert tree.search(14, 10) is None
 
         # check if the nodes are still in order after deletion
-        self.assertEqual(tree.inorder(5), [1, 3, 6, 7, 8, 10, 14])
-        self.assertEqual(tree.inorder(6), [1, 7, 8, 10, 14])
-        self.assertEqual(tree.inorder(7), [1, 7, 10, 14])
-        self.assertEqual(tree.inorder(10), [])
+        assert tree.inorder(5) == [1, 3, 6, 7, 8, 10, 14]
+        assert tree.inorder(6) == [1, 7, 8, 10, 14]
+        assert tree.inorder(7) == [1, 7, 10, 14]
+        assert tree.inorder(10) == []
 
         # check if the nodes are there after new insertion
-        self.assertEqual(tree.inorder(8), [0, 1, 7, 10, 14])
-        self.assertEqual(tree.inorder(9), [0, 1, 2, 5, 7, 10, 14])
-        self.assertEqual(tree.inorder(11), [1])
-
-if __name__ == '__main__':
-    unittest.main()
+        assert tree.inorder(8) == [0, 1, 7, 10, 14]
+        assert tree.inorder(9) == [0, 1, 2, 5, 7, 10, 14]
+        assert tree.inorder(11) == [1]
