@@ -146,9 +146,14 @@ class PNode:
 
 
 class PartialPersistentBst:
-    def __init__(self):
+    key_fn = lambda x: x
+    compare_fn = lambda x, y: x - y
+
+    def __init__(self, key_fn=None, compare_fn=None):
         self.roots = []
         self.update_sets = []
+        self.key_fn = key_fn if key_fn else PartialPersistentBst.key_fn
+        self.compare_fn = compare_fn if compare_fn else PartialPersistentBst.compare_fn 
 
     def get_latest_version(self):
         return len(self.roots) - 1
@@ -205,9 +210,9 @@ class PartialPersistentBst:
         parent = None
         while root:
             parent = root
-            if node.key < root.key:
+            if self.compare_fn(self.key_fn(node.key), self.key_fn(root.key)) < 0:
                 root = root.get("left", version)
-            elif node.key > root.key:
+            elif self.compare_fn(self.key_fn(node.key), self.key_fn(root.key)) > 0:
                 root = root.get("right", version)
             else:
                 # print("Key already exists in the tree.")
@@ -215,7 +220,7 @@ class PartialPersistentBst:
 
         node.parent = parent
         assert parent is not None
-        if node.key < parent.key:
+        if self.compare_fn(self.key_fn(node.key), self.key_fn(parent.key)) < 0:
             parent.set("left", node, version)
         else:
             parent.set("right", node, version)
@@ -232,12 +237,39 @@ class PartialPersistentBst:
         version = min(self.get_latest_version(), version)
         root = self.roots[version]
         while root:
-            if key < root.key:
+            if self.compare_fn(self.key_fn(key), self.key_fn(root.key)) < 0:
                 root = root.get("left", version)
-            elif key > root.key:
+            elif self.compare_fn(self.key_fn(key), self.key_fn(root.key)) > 0:
                 root = root.get("right", version)
             else:
                 return root
+        return None
+
+    def search_gt(self, key, version):
+        if version is None:
+            version = self.get_latest_version()
+        if version < 0 or self.get_latest_version() == -1:
+            return None
+        else:
+            return self._search_gt(key, version)
+
+    def _search_gt(self, key, version):
+        version = min(self.get_latest_version(), version)
+        root = self.roots[version]
+        while root:
+            if self.compare_fn(key, self.key_fn(root.key)) > 0:
+                root = root.get("right", version)
+            elif self.compare_fn(key, self.key_fn(root.key)) < 0:
+                if root.left and self.compare_fn(key, self.key_fn(root.left.key)) < 0:
+                    root = root.get("left", version)
+                else:
+                    return root
+            else:
+                parent = root.get("parent", version)
+                if parent and self.compare_fn(key, self.key_fn(parent.key)) < 0:
+                    return parent
+                else:
+                    return root.get("right", version)
         return None
 
     def delete(self, key):
@@ -318,7 +350,7 @@ class PartialPersistentBst:
         if node:
             node.parent = PNode.get_live_node(old_parent)
 
-    def inorder(self, version=None):
+    def inorder(self, version=None, extract_key=True):
         result = []
         if version is not None:
             version = min(version, self.get_latest_version())
@@ -327,12 +359,12 @@ class PartialPersistentBst:
         if version < 0:
             return result
         else:
-            self._inorder(self.roots[version], result, version)
+            self._inorder(self.roots[version], result, version, extract_key)
             return result
 
-    def _inorder(self, node, result, version):
+    def _inorder(self, node, result, version, extract_key):
         if not node:
             return
-        self._inorder(node.get("left", version), result, version)
-        result.append(node.key)
-        self._inorder(node.get("right", version), result, version)
+        self._inorder(node.get("left", version), result, version, extract_key)
+        result.append(self.key_fn(node.key) if extract_key else node)
+        self._inorder(node.get("right", version), result, version, extract_key)
