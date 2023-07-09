@@ -17,8 +17,9 @@ class BinarySearchTree:
     def insert(self, key, overwrite=False):
         if not self.root:
             self.root = BstNode(key)
+            return self.root
         else:
-            self._insert(BstNode(key), overwrite=overwrite)
+            return self._insert(BstNode(key), overwrite=overwrite)
  
     def _insert(self, node, overwrite=False):
         root, parent = self.root, None 
@@ -32,7 +33,7 @@ class BinarySearchTree:
                 if overwrite:
                     root.key = node.key
                 # print(f"Key: {root.key} already exists in the tree.")
-                return
+                return None
 
         node.parent = parent
         assert parent is not None
@@ -40,6 +41,7 @@ class BinarySearchTree:
             parent.left = node
         else:
             parent.right = node
+        return node
  
     def search(self, key):
         if not self.root:
@@ -105,6 +107,7 @@ class BinarySearchTree:
             node = self.search(key) 
             if node:
                 self._delete(node)
+            return node
  
     def _delete(self, node):
         if node.left is None:
@@ -147,18 +150,18 @@ class BinarySearchTree:
         if node:
             node.parent = old.parent
 
-    def inorder(self):
+    def inorder(self, extract_key=True):
         result = []
         if self.root is None:
             return result
         else:
-            self._inorder(self.root, result)
+            self._inorder(self.root, result, extract_key)
             return result
 
-    def _inorder(self, node, result):
+    def _inorder(self, node, result, extract_key):
         if node is None:
             return
-        self._inorder(node.left, result)
-        result.append(self.key_fn(node.key))
-        self._inorder(node.right, result)
+        self._inorder(node.left, result, extract_key)
+        result.append(self.key_fn(node.key) if extract_key else node)
+        self._inorder(node.right, result, extract_key)
 
