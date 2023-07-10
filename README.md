@@ -35,7 +35,7 @@ from pbst.lib.bst import (
 )
 ```
 
-- `insert(key, value)`: insert a new node with the given key and value into the tree.
+- `insert(key)`: insert a new node with the given key and value into the tree.
 - `delete(key)`: delete the node with the given key from the tree.
 - `search(key)`: search the node with the given key in the tree.
 - `inorder(extract_key)`: traverse the tree in **inorder**. The `extract_key` flag indicates whether to extract the key from the node.
@@ -44,9 +44,11 @@ from pbst.lib.bst import (
 
 ### Partial Persistent Binary Search Tree
 
+Partial Persistence is a weaker form of persistence. It allows us to access the older version of the data structure but not to modify it. **You can only update the data structure based on the most recent version.**
+
 The partial persistent binary search tree is implemented in the `lib.pp_fatnode_bst` and the `lib.pp_path_copying_bst` module. Those are two different implementations but provide the same interfaces.
 
-#### Fat Node
+#### Using Fat Node Implementation
 
 ```python
 from pbst.lib.pp_fatnode_bst import (
@@ -55,11 +57,34 @@ from pbst.lib.pp_fatnode_bst import (
 )
 ```
 
-#### Path Copying
+#### Using Path Copying Implementation
 
 ```python
 from pbst.lib.pp_path_copying_bst import (
     PartialPersistentBst as PPPathCopyingBst,
     PNode as PPPathCopyingNode
 )
+```
+
+The partial persistent binary search tree has the following methods:
+
+- `insert(keys)`: insert a new node or multiple nodes with the given key and value into the tree.
+- `delete(keys)`: delete a node or multiple nodes with the given key(s) from the tree.
+- `search(key, version)`: search the node with the given key in the tree at the given version.
+- `inorder(version)`: traverse the tree in **inorder** at the given version.
+
+#### Example
+
+```python
+# You can use the fat node variant to achieve the same result.
+bst = PPPathCopyingBst() # version -1
+bst.insert(4) # version 0
+bst.insert(1) # version 1
+bst.insert(3) # version 2
+bst.insert(5) # version 3
+bst.delete(3) # version 4
+bst.delete(1) # version 5
+assert bst.search(1, 0) is None
+assert bst.search(1, 1).key == 1
+assert bst.inorder(5) == [4, 5]
 ```
