@@ -15,9 +15,10 @@ from lib.binary_search_tree import BinarySearchTree as Bst, BstNode  # noqa
 from itertools import cycle  # noqa
 from utils import (  # noqa
     centroid,
-    comapre_line_segments,
+    compare_line_segments,
     compare_x_asc_y_desc,
     is_below_or_on_line,
+    binary_search,
     Edge,
     Face,
     Vertex,
@@ -43,7 +44,7 @@ class App:
         self.areas = []
         self.points = []
         self.slabs = Bst(key_fn=lambda s: s.start)
-        self.line_segments = PartialPersistentBst(compare_fn=comapre_line_segments)
+        self.line_segments = PartialPersistentBst(compare_fn=compare_line_segments)
         self.planar_graph = nx.Graph()
         self.analyzed = False
         self.planar_embedding = None
@@ -242,22 +243,26 @@ class App:
             slab = slab.key
             p.slab = slab.name
             segs = self.line_segments.inorder(slab.version)
-            for line in segs:
-                if is_below_or_on_line(line.u, line.v, p):
-                    self.planar_embedding = cast(
-                        nx.PlanarEmbedding, self.planar_embedding
-                    )
-                    face_nodes = self.planar_embedding.traverse_face(
-                        line.u.name, line.v.name
-                    )
-                    face_name = self.find_face(face_nodes)
-                    print(
-                        f"Point {p.name} is in slab {slab.name},"
-                        f"below or on line {str(line)},"
-                        f"in face {face_name if face_name else 'N/A'}"
-                    )
-                    p.face = face_name
-                    break
+            idx = binary_search(segs, p, is_below_or_on_line)
+            try:
+                if idx < 0:
+                    raise IndexError
+                line = segs[idx]
+                self.planar_embedding = cast(
+                    nx.PlanarEmbedding, self.planar_embedding
+                )
+                face_nodes = self.planar_embedding.traverse_face(
+                    line.u.name, line.v.name
+                )
+                face_name = self.find_face(face_nodes)
+                print(
+                    f"Point {p.name} is in slab {slab.name},"
+                    f"below or on line {str(line)},"
+                    f"in face {face_name if face_name else 'N/A'}"
+                )
+                p.face = face_name
+            except IndexError:
+                pass
             if face_name is None:
                 p.face = "N/A"
                 print(

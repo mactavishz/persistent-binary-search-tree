@@ -1,3 +1,6 @@
+import math
+
+
 class Point:
     def __init__(self, x, y, name, slab, face):
         self.x = x
@@ -76,6 +79,7 @@ def centroid(points) -> tuple:
     n = len(points)
     return sum(x) / n, sum(y) / n
 
+
 def compare_x_asc_y_desc(v1: Vertex, v2: Vertex) -> int:
     # compare x first asc, then y desc
     if v1.x < v2.x:
@@ -90,7 +94,8 @@ def compare_x_asc_y_desc(v1: Vertex, v2: Vertex) -> int:
         else:
             return 0
 
-def comapre_line_segments(e1: Edge, e2: Edge) -> int:
+
+def compare_line_segments(e1: Edge, e2: Edge) -> int:
     if e1 == e2:
         return 0
     if e1.u == e2.u:
@@ -98,9 +103,34 @@ def comapre_line_segments(e1: Edge, e2: Edge) -> int:
     else:
         return 1 if e1.u.y > e2.u.y else -1
 
-def is_below_or_on_line(v1: Vertex, v2: Vertex, p: Point) -> bool:
+
+def is_below_or_on_line(e: Edge, p: Point) -> bool:
+    v1 = e.u
+    v2 = e.v
+
     def line_eq(v1, v2):
         return lambda x: (v2.y - v1.y) * ((x - v1.x) / (v2.x - v1.x)) + v1.y
 
-    res = line_eq(v1, v2)(p.x) - p.y
-    return res >= 0
+    return line_eq(v1, v2)(p.x) - p.y
+
+
+def binary_search(arr, target, compare):
+    """
+    Pseudo binary search for the points below line segments
+    """
+    low = 0
+    high = len(arr) - 1
+
+    mid = math.ceil((low + high) / 2)
+    while low <= high and compare(arr[mid], target) >= 0:
+        high = mid - 1
+        mid = math.ceil((low + high) / 2)
+
+    if high < low:
+        return -1
+    else:
+        while compare(arr[mid], target) < 0:
+            mid += 1
+            if mid >= len(arr):
+                return -1
+        return mid
