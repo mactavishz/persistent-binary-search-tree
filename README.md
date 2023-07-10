@@ -2,7 +2,18 @@
 
 Persistent binary search tree implementation in Python. This is an example of [persistent data structure](https://en.wikipedia.org/wiki/Persistent_data_structure). The implementation is based on the algorithm from [Sleator, Tarjan et al.](https://www.cs.cmu.edu/~sleator/papers/making-data-structures-persistent.pdf).
 
-Or you can check out these [slides](https://cs.au.dk/~gerth/aa15/slides/persistent.pdf) for an quick overview.
+Alternatively, you can check out these [slides](https://cs.au.dk/~gerth/aa15/slides/persistent.pdf) for an overview.
+
+With the persistent data structure, you can access the older version of the data structure. This is useful in many scenarios. Literally, you can go back in time![^1]
+
+<div style="display: flex; justify-content: center; margin: 1em 0">
+    <img 
+        src="./Back-to-the-future-logo.svg"
+        alt="Back to the future logo"
+        width="65%" />
+</div>
+
+<!-- ![Back to the future logo](./Back-to-the-future-logo.svg)[^1] -->
 
 ## Prerequisites
 
@@ -90,3 +101,7 @@ assert bst.search(1, 0) is None
 assert bst.search(1, 1).key == 1
 assert bst.inorder(5) == [4, 5]
 ```
+
+## References
+
+[^1]: By back to the future - http://www.seeklogo.com/files/B/Back_to_the_Future-vector-logo-E8A05606FB-seeklogo.com.zip, Public Domain, https://commons.wikimedia.org/w/index.php?curid=53889429
