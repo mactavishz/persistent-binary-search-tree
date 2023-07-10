@@ -1,5 +1,5 @@
-from ..binary_search_tree import BinarySearchTree as Bst
-from ..ordered_list import OrderedList, OrderedNode
+from lib.binary_search_tree.bst import BinarySearchTree as Bst
+from lib.ordered_list import OrderedList, OrderedNode
 from collections import namedtuple
 from typing import Any
 
