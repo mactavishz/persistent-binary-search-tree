@@ -1,4 +1,4 @@
-from lib.bst import Bst
+from .bst import Bst
 from collections import namedtuple
 
 Record = namedtuple('VField', ('field', 'value', 'version'))

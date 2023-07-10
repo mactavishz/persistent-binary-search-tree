@@ -1,5 +1,5 @@
-from lib.bst import Bst
-from lib.ordered_list import OrderedList, OrderedNode
+from .bst import Bst
+from .ordered_list import OrderedList, OrderedNode
 from collections import namedtuple
 from typing import Any
 
