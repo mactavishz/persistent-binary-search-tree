@@ -2,9 +2,9 @@ import pytest
 import random
 from copy import copy
 
-from lib.full_persistence.fp_fatnode_bst import FullPersistentBst as FatNodeBst 
+from lib.fp_fatnode_bst import FullPersistentBst as FPFatNodeBst 
 
-@pytest.mark.parametrize("Bst", [FatNodeBst])
+@pytest.mark.parametrize("Bst", [FPFatNodeBst])
 class TestPartialPersistence:
     def test_insert_search(self, Bst):
         tree = Bst()
@@ -132,7 +132,7 @@ class TestPartialPersistence:
         assert tree.inorder(v10) == [1, 7, 8, 10, 14]
         assert tree.inorder(v11) == [1, 7, 10, 14]
 
-@pytest.mark.parametrize("Bst", [FatNodeBst])
+@pytest.mark.parametrize("Bst", [FPFatNodeBst])
 class TestFullPersistence:
     def test_insert_multiple_path(self, Bst):
         tree = Bst()

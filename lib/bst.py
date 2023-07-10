@@ -7,22 +7,23 @@ class BstNode:
 
     def __str__(self):
         return f"BstNode({self.key})"
- 
-class BinarySearchTree:
+
+
+class Bst:
     def __init__(self, key_fn=None, compare_fn=None):
         self.root = None
         self.key_fn = key_fn if key_fn else lambda x: x
         self.compare_fn = compare_fn if compare_fn else lambda x, y: x - y
- 
+
     def insert(self, key, overwrite=False):
         if not self.root:
             self.root = BstNode(key)
             return self.root
         else:
             return self._insert(BstNode(key), overwrite=overwrite)
- 
+
     def _insert(self, node, overwrite=False):
-        root, parent = self.root, None 
+        root, parent = self.root, None
         while root:
             parent = root
             if self.compare_fn(self.key_fn(node.key), self.key_fn(root.key)) < 0:
@@ -42,13 +43,13 @@ class BinarySearchTree:
         else:
             parent.right = node
         return node
- 
+
     def search(self, key):
         if not self.root:
             return None
         else:
             return self._search(key, self.root)
- 
+
     def _search(self, key, node):
         while node:
             if self.compare_fn(key, self.key_fn(node.key)) < 0:
@@ -58,7 +59,7 @@ class BinarySearchTree:
             else:
                 return node
         return None
- 
+
     def search_le(self, key):
         if not self.root:
             return None
@@ -94,7 +95,10 @@ class BinarySearchTree:
                 else:
                     return node
             else:
-                if node.parent and self.compare_fn(key, self.key_fn(node.parent.key)) < 0:
+                if (
+                    node.parent
+                    and self.compare_fn(key, self.key_fn(node.parent.key)) < 0
+                ):
                     return node.parent
                 else:
                     return node.right
@@ -104,18 +108,18 @@ class BinarySearchTree:
         if not self.root:
             return
         else:
-            node = self.search(key) 
+            node = self.search(key)
             if node:
                 self._delete(node)
             return node
- 
+
     def _delete(self, node):
         if node.left is None:
             self._transplant(node, node.right)
         elif node.right is None:
             self._transplant(node, node.left)
         else:
-            tmp = self._successor(node) # tmp has at most one child on its right
+            tmp = self._successor(node)  # tmp has at most one child on its right
             if tmp is not node.right:
                 self._transplant(tmp, tmp.right)
                 tmp.right = node.right
@@ -128,7 +132,7 @@ class BinarySearchTree:
         # if node has a right child
         if node and node.right:
             return self._find_min(node.right)
-        
+
         # if node has no right child
         while node.parent and node.parent.right == node:
             node = node.parent
@@ -164,4 +168,3 @@ class BinarySearchTree:
         self._inorder(node.left, result, extract_key)
         result.append(self.key_fn(node.key) if extract_key else node)
         self._inorder(node.right, result, extract_key)
-

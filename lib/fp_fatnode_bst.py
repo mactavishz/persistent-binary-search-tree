@@ -1,9 +1,10 @@
-from lib.binary_search_tree.bst import BinarySearchTree as Bst
+from lib.bst import Bst
 from lib.ordered_list import OrderedList, OrderedNode
 from collections import namedtuple
 from typing import Any
 
-Record = namedtuple('VField', ('field', 'value', 'version'))
+Record = namedtuple("VField", ("field", "value", "version"))
+
 
 class FatNode:
     key = lambda t: t.version
@@ -59,7 +60,8 @@ class FatNode:
                 case "parent":
                     record = self._vparent.search_le(version)
             if not record:
-                # if we can not find a suitable version of record that is less or equal than the given version
+                # if we can not find a suitable version of record 
+                # that is less or equal than the given version
                 # then we return the latest version of the record
                 return self.get(attr, self.version)
             else:
@@ -189,7 +191,8 @@ class FullPersistentBst:
                 return None
 
         while root:
-            # handle the case when the tree is empty, the root is a FatNode with key = None
+            # handle the case when the tree is empty,
+            # the root is a FatNode with key = None
             if key < root.key:
                 root = root.get("left", version).value
             elif key > root.key:
@@ -221,7 +224,9 @@ class FullPersistentBst:
         elif node_r is None:
             self._transplant(node, node_l, version)
         else:
-            tmp = self._successor(node, version)  # tmp has at most one child on its right
+            tmp = self._successor(
+                node, version
+            )  # tmp has at most one child on its right
             if tmp is not node_r:
                 self._transplant(tmp, tmp.get("right", version).value, version)
                 tmp.set("right", node_r, version)

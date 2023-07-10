@@ -3,7 +3,7 @@ import os
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from lib.binary_search_tree.bst import BinarySearchTree as Bst
+from lib.bst import Bst
 from copy import copy
 
 class TestBinarySearchTree():
