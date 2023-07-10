@@ -28,14 +28,7 @@ from utils import (  # noqa
 
 # for debug purposes
 # mpl.use("macosx")
-
 cycol = cycle("bgrcmykw")
-obj_file = os.path.join(os.path.dirname(__file__), "example.obj")
-scene = pywavefront.Wavefront(obj_file, collect_faces=True)
-
-
-def test():
-    print("hello")
 
 
 class App:
@@ -46,6 +39,7 @@ class App:
         self.slabs = Bst(key_fn=lambda s: s.start)
         self.line_segments = PartialPersistentBst(compare_fn=compare_line_segments)
         self.planar_graph = nx.Graph()
+        self.obj_file = None
         self.analyzed = False
         self.planar_embedding = None
         self.graph_options = {
@@ -215,7 +209,19 @@ class App:
         self.analyzed = True
 
     def run(self):
-        self.setup("example.obj")
+        args = sys.argv[1:]
+        if len(args) == 0:
+            self.obj_file = "planar_1.obj"
+        else:
+            num = args[0]
+            match num:
+                case "1":
+                    self.obj_file = "planar_1.obj"
+                case "2":
+                    self.obj_file = "planar_2.obj"
+                case _:
+                    self.obj_file = "planar_1.obj"
+        self.setup(self.obj_file)
         self.draw()
         plt.show()
 
@@ -225,7 +231,7 @@ class App:
             if os.path.isabs(file_path)
             else os.path.join(os.path.dirname(__file__), file_path)
         )
-        scene = pywavefront.Wavefront(obj_file, collect_faces=True)
+        scene = pywavefront.Wavefront(file_path, collect_faces=True)
         return scene.vertices, scene.mesh_list[0].faces
 
     def find_face(self, face_nodes):
@@ -248,16 +254,17 @@ class App:
                 if idx < 0:
                     raise IndexError
                 line = segs[idx]
-                self.planar_embedding = cast(
-                    nx.PlanarEmbedding, self.planar_embedding
+                self.planar_embedding = cast(nx.PlanarEmbedding, self.planar_embedding)
+                args = (
+                    (line.v.name, line.u.name)
+                    if self.obj_file == "planar_2.obj"
+                    else (line.u.name, line.v.name)
                 )
-                face_nodes = self.planar_embedding.traverse_face(
-                    line.u.name, line.v.name
-                )
+                face_nodes = self.planar_embedding.traverse_face(*args)
                 face_name = self.find_face(face_nodes)
                 print(
-                    f"Point {p.name} is in slab {slab.name},"
-                    f"below or on line {str(line)},"
+                    f"Point {p.name} is in slab {slab.name}, "
+                    f"below or on line {str(line)}, "
                     f"in face {face_name if face_name else 'N/A'}"
                 )
                 p.face = face_name
