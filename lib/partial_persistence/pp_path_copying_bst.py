@@ -1,7 +1,7 @@
 from typing import Optional
 from collections import namedtuple
 
-Record = namedtuple('VField', ('field', 'value', 'version'))
+Record = namedtuple("VField", ("field", "value", "version"))
 
 
 class PNode:
@@ -70,7 +70,8 @@ class PNode:
         else:
             record = self.get_mod(attr, version)
             if record is None:
-                # if we can not find a suitable version of record that is less or equal than the given version
+                # if we can not find a suitable version of record
+                # which is less or equal than the given version
                 # then we return the latest version of the record
                 return self.get(attr, self.version)
             else:
@@ -94,7 +95,8 @@ class PNode:
             if self.copy:
                 self.copy.set(attr, new_val, version)
                 return
-            # if there's no copy node, we first check if there's still available space for new mods
+            # if there's no copy node, we first
+            # check if there's still available space for new mods
             i = self.next_mod(attr, version)
             if i != -1:  # if there's still available mods
                 self.mods[i] = Record(attr, new_val, version)
@@ -146,14 +148,19 @@ class PNode:
 
 
 class PartialPersistentBst:
-    key_fn = lambda x: x
-    compare_fn = lambda x, y: x - y
+    @staticmethod
+    def key_fn(x):
+        return x
+
+    @staticmethod
+    def compare_fn(x, y):
+        return x - y
 
     def __init__(self, key_fn=None, compare_fn=None):
         self.roots = []
         self.update_sets = []
         self.key_fn = key_fn if key_fn else PartialPersistentBst.key_fn
-        self.compare_fn = compare_fn if compare_fn else PartialPersistentBst.compare_fn 
+        self.compare_fn = compare_fn if compare_fn else PartialPersistentBst.compare_fn
 
     def get_latest_version(self):
         return len(self.roots) - 1
@@ -302,11 +309,14 @@ class PartialPersistentBst:
         elif node_r is None:
             self._transplant(node, node_l, version)
         else:
-            tmp = self._successor(node, version)  # tmp has at most one child on its right
+            tmp = self._successor(
+                node, version
+            )  # tmp has at most one child on its right
             if tmp is not node_r:
                 tmp_r = tmp.get("right", version)
                 self._transplant(tmp, tmp_r, version)
-                # node might be updated during the transplant and has potentially a new copy
+                # node might be updated during the transplant
+                # and has potentially a new copy
                 # (if it does not have enough space to store the modification)
                 node = PNode.get_live_node(node)
                 tmp.set("right", node.get("right", version), version)
