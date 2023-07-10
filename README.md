@@ -48,7 +48,7 @@ from pbst.lib.bst import (
 )
 ```
 
-- `insert(key)`: insert a new node with the given key and value into the tree.
+- `insert(key)`: insert a new node with the given key into the tree.
 - `delete(key)`: delete the node with the given key from the tree.
 - `search(key)`: search the node with the given key in the tree.
 - `inorder(extract_key)`: traverse the tree in **inorder**. The `extract_key` flag indicates whether to extract the key from the node.
@@ -81,7 +81,7 @@ from pbst.lib.pp_path_copying_bst import (
 
 The partial persistent binary search tree has the following methods:
 
-- `insert(keys)`: insert a new node or multiple nodes with the given key and value into the tree.
+- `insert(keys)`: insert a new node or multiple nodes with the given key(s) into the tree.
 - `delete(keys)`: delete a node or multiple nodes with the given key(s) from the tree.
 - `search(key, version)`: search the node with the given key in the tree at the given version.
 - `inorder(version)`: traverse the tree in **inorder** at the given version.
