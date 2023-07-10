@@ -11,7 +11,7 @@ from typing import cast
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from lib.partial_persistence.pp_path_copying_bst import PartialPersistentBst  # noqa
-from lib.binary_search_tree import BinarySearchTree as Bst, BstNode  # noqa
+from lib.binary_search_tree.bst import BinarySearchTree as Bst, BstNode  # noqa
 from itertools import cycle  # noqa
 from utils import (  # noqa
     centroid,
