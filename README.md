@@ -17,7 +17,8 @@ With the persistent data structure, you can access the older version of the data
 
 ## Prerequisites
 
-- Python 3.10 or higher.
+- [Python](https://www.python.org/downloads/) 3.10 or higher.
+- [GNU Make](https://www.gnu.org/software/make/), for Windows users, you can install it via [Chocolatey](https://chocolatey.org/): `choco install make`.
 
 ## Getting Started
 
