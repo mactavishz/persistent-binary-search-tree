@@ -102,6 +102,53 @@ assert bst.search(1, 1).key == 1
 assert bst.inorder(5) == [4, 5]
 ```
 
+### Full Persistent Binary Search Tree
+
+Full Persistence allows us to access the older version of the data structure and even modify it. **You can update the data structure based on any version.**
+
+Currently only the fat node variant is implemented:
+
+```python
+from pbst.lib.fp_fatnode_bst import (
+    FullPersistentBst as FPFatNodeBst,
+    FatNode as FPFatNode
+)
+```
+
+Unlike the partial persistence, the full persistent data structure also maintains a version tree. **All the update operations will return a version**, so that you can use this version to query the data structure.
+
+The full persistent binary search tree has the following methods:
+
+- `insert(key, version)`: insert a new node the given key into the tree **after** the given version.
+- `delete(key, version)`: delete a node with the given key from the tree **after** the given version.
+- `search(key, version)`: search the node with the given key in the tree **at** the given version.
+- `inorder(key, version)`: traverse the tree in **inorder** at the given version.
+
+#### Example
+
+```python
+tree = FPFatNodeBst()
+v0 = tree.insert(10) # return a version node not a version number
+v1 = tree.insert(7, v0)
+v2 = tree.insert(20, v1)
+v3 = tree.insert(15, v2)
+v4 = tree.insert(25, v3) # till now we have a linear version tree
+v5 = tree.delete(7, v3)  # start branching based on v3
+v6 = tree.delete(20, v4) # continue the original branch
+v7 = tree.insert(30, v3) # start another branch based on v3
+assert tree.search(25, v1) is None
+assert tree.inorder(v4) == [7, 10, 15, 20, 25]
+assert tree.search(7, v5) is None
+assert tree.inorder(v5) == [10, 15, 20]
+assert tree.inorder(v6) == [7, 10, 15, 25]
+assert tree.inorder(v7) == [7, 10, 15, 20, 30]
+assert tree.search(20, v7).key == 20
+```
+
+Be careful that number of the versions (0,1,2,3,etc.) does not correspond directly to the version. But the version node returned by the update operations do correspond directly to the version in the version tree.
+
+It takes some time to wrap your head around this concept. You can first draw the version tree on a piece of paper and then update your version tree when you invoke any update methods.
+
 ## References
 
 [^1]: By back to the future - http://www.seeklogo.com/files/B/Back_to_the_Future-vector-logo-E8A05606FB-seeklogo.com.zip, Public Domain, https://commons.wikimedia.org/w/index.php?curid=53889429
