@@ -252,33 +252,6 @@ class PartialPersistentBst:
                 return root
         return None
 
-    def search_gt(self, key, version):
-        if version is None:
-            version = self.get_latest_version()
-        if version < 0 or self.get_latest_version() == -1:
-            return None
-        else:
-            return self._search_gt(key, version)
-
-    def _search_gt(self, key, version):
-        version = min(self.get_latest_version(), version)
-        root = self.roots[version]
-        while root:
-            if self.compare_fn(key, self.key_fn(root.key)) > 0:
-                root = root.get("right", version)
-            elif self.compare_fn(key, self.key_fn(root.key)) < 0:
-                if root.left and self.compare_fn(key, self.key_fn(root.left.key)) < 0:
-                    root = root.get("left", version)
-                else:
-                    return root
-            else:
-                parent = root.get("parent", version)
-                if parent and self.compare_fn(key, self.key_fn(parent.key)) < 0:
-                    return parent
-                else:
-                    return root.get("right", version)
-        return None
-
     def delete(self, key):
         nodes = []
         version = None
