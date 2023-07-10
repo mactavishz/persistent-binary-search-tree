@@ -149,6 +149,35 @@ Be careful that number of the versions (0,1,2,3,etc.) does not correspond direct
 
 It takes some time to wrap your head around this concept. You can first draw the version tree on a piece of paper and then update your version tree when you invoke any update methods.
 
+### Unit Tests
+
+This repo provides a comprehensive set of test cases. All test cases are located in the `tests` directory. [Pytest](https://docs.pytest.org/en/latest/) is used as the test runner.
+
+You can run the tests with the following command:
+
+```bash
+make test
+```
+
+### Demo Application
+
+A common use case of persistent data structure is to solve the [planar point location problem](https://en.wikipedia.org/wiki/Point_location). This repo provides a demo application that uses the partial persistent binary search tree to solve the planar point location problem using [slab decomposition](https://en.wikipedia.org/wiki/Point_location#Slab_decomposition).
+
+The demo is implemented in the `app` directory. It uses [Matplotlib](https://matplotlib.org/) and [Networkx](https://networkx.github.io/) to let you interact with it and visualize the result.
+
+
+```bash
+# run the first demo
+make
+
+# run the second demo
+make app2
+```
+
+#### Screenshot of the Demo
+
+![Screenshot of the demo](./demo.png)
+
 ## References
 
 [^1]: By back to the future - http://www.seeklogo.com/files/B/Back_to_the_Future-vector-logo-E8A05606FB-seeklogo.com.zip, Public Domain, https://commons.wikimedia.org/w/index.php?curid=53889429
