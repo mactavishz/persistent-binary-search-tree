@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 class BstNode:
     def __init__(self, key):
         self.left = None
@@ -8,12 +10,38 @@ class BstNode:
     def __str__(self):
         return f"BstNode({self.key})"
 
+    def __deepcopy__(self, memo):
+        if id(self) in memo:
+            return memo[id(self)]
+
+        new_node = BstNode(self.key)
+        memo[id(self)] = new_node
+
+        new_node.left = deepcopy(self.left, memo)
+        new_node.right = deepcopy(self.right, memo)
+
+        if self.parent:
+            new_node.parent = deepcopy(self.parent, memo)
+        else:
+            new_node.parent = None
+
+        return new_node
+
 
 class Bst:
     def __init__(self, key_fn=None, compare_fn=None):
         self.root = None
         self.key_fn = key_fn if key_fn else lambda x: x
         self.compare_fn = compare_fn if compare_fn else lambda x, y: x - y
+
+    def __deepcopy__(self, memo):
+        if id(self) in memo:
+            return memo[id(self)]
+
+        new_bst = Bst(self.key_fn, self.compare_fn)
+        memo[id(self)] = new_bst
+        new_bst.root = deepcopy(self.root, memo)
+        return new_bst
 
     def insert(self, key, overwrite=False):
         if not self.root:
