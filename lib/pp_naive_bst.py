@@ -16,7 +16,6 @@ class PartialPersistentBst:
         else:
             nodes = [key]
         if len(self.roots) == 0:
-            version = 0
             self.roots.append(Bst())
             self.roots[0].insert(nodes[0])
             nodes = nodes[1:]
