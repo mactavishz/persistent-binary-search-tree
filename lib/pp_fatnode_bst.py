@@ -4,7 +4,6 @@ from collections import namedtuple
 Record = namedtuple('VField', ('field', 'value', 'version'))
 
 class FatNode:
-    key = lambda t: t.version
     def __init__(self, key, version):
         """
         We require that the key will never change, so we don't need to keep track of
@@ -18,6 +17,10 @@ class FatNode:
         self._vleft = Bst(FatNode.key)
         self._vright = Bst(FatNode.key)
         self._vparent = Bst(FatNode.key)
+
+    @staticmethod
+    def key(t: Record):
+        return t.version
 
     def __str__(self):
         return f"FatNode(key: {self.key}, version: {self.version})"
@@ -55,7 +58,8 @@ class FatNode:
                 case "parent":
                     record = self._vparent.search_le(version)
             if not record:
-                # if we can not find a suitable version of record that is less or equal than the given version
+                # if we can not find a suitable version of record
+                # that is less or equal than the given version
                 # then we return the latest version of the record
                 return self.get(attr, self.version)
             else:
@@ -69,11 +73,17 @@ class FatNode:
         else:
             match attr:
                 case "left":
-                    self._vleft.insert(Record("left", new_val, version), overwrite=True)
+                    self._vleft.insert(
+                        Record("left", new_val, version), overwrite= True
+                    )
                 case "right":
-                    self._vright.insert(Record("right", new_val, version), overwrite=True)
+                    self._vright.insert(
+                        Record("right", new_val, version), overwrite=True
+                    )
                 case "parent":
-                    self._vparent.insert(Record("parent", new_val, version), overwrite=True)
+                    self._vparent.insert(
+                        Record("parent", new_val, version), overwrite=True
+                    )
  
 class PartialPersistentBst:
     def __init__(self):
@@ -177,7 +187,8 @@ class PartialPersistentBst:
         elif node_r is None:
             self._transplant(node, node_l, version)
         else:
-            tmp = self._successor(node, version) # tmp has at most one child on its right
+            # tmp has at most one child on its right
+            tmp = self._successor(node, version) 
             if tmp is not node_r:
                 self._transplant(tmp, tmp.get("right", version), version)
                 tmp.set("right", node_r, version)
