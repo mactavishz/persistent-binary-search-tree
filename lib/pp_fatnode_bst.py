@@ -1,7 +1,8 @@
 from .bst import Bst
 from collections import namedtuple
 
-Record = namedtuple('VField', ('field', 'value', 'version'))
+Record = namedtuple("VField", ("field", "value", "version"))
+
 
 class FatNode:
     def __init__(self, key, version):
@@ -73,9 +74,7 @@ class FatNode:
         else:
             match attr:
                 case "left":
-                    self._vleft.insert(
-                        Record("left", new_val, version), overwrite= True
-                    )
+                    self._vleft.insert(Record("left", new_val, version), overwrite=True)
                 case "right":
                     self._vright.insert(
                         Record("right", new_val, version), overwrite=True
@@ -84,14 +83,15 @@ class FatNode:
                     self._vparent.insert(
                         Record("parent", new_val, version), overwrite=True
                     )
- 
+
+
 class PartialPersistentBst:
     def __init__(self):
         self.roots = []
 
     def get_latest_version(self):
         return len(self.roots) - 1
- 
+
     def insert(self, key):
         nodes = []
         version = None
@@ -117,7 +117,7 @@ class PartialPersistentBst:
         # insert the rest of the nodes
         for k in nodes:
             self._insert(FatNode(k, version), version)
- 
+
     def _insert(self, node, version):
         root = self.roots[version]
         parent = None
@@ -137,7 +137,7 @@ class PartialPersistentBst:
             parent.set("left", node, version)
         else:
             parent.set("right", node, version)
- 
+
     def search(self, key, version=None):
         if version is None:
             version = self.get_latest_version()
@@ -145,7 +145,7 @@ class PartialPersistentBst:
             return None
         else:
             return self._search(key, version)
- 
+
     def _search(self, key, version):
         version = min(self.get_latest_version(), version)
         root = self.roots[version]
@@ -157,7 +157,7 @@ class PartialPersistentBst:
             else:
                 return root
         return None
- 
+
     def delete(self, key):
         nodes = []
         version = None
@@ -171,24 +171,24 @@ class PartialPersistentBst:
         else:
             version = self.get_latest_version() + 1
             for k in nodes:
-                node = self.search(k, version) 
+                node = self.search(k, version)
                 if node:
                     self._delete(node, version)
                     # if the root was not changed, we just copy the last root
                     if version != self.get_latest_version():
                         self.roots.append(self.roots[-1])
- 
+
     def _delete(self, node, version):
         node_l = node.get("left", version)
         node_r = node.get("right", version)
- 
+
         if node_l is None:
             self._transplant(node, node_r, version)
         elif node_r is None:
             self._transplant(node, node_l, version)
         else:
             # tmp has at most one child on its right
-            tmp = self._successor(node, version) 
+            tmp = self._successor(node, version)
             if tmp is not node_r:
                 self._transplant(tmp, tmp.get("right", version), version)
                 tmp.set("right", node_r, version)
@@ -206,11 +206,11 @@ class PartialPersistentBst:
         # if node has a right child
         if node and node.get("right", version):
             return self._find_min(node.get("right", version), version)
-        
+
         # if node has no right child
         parent = node.get("parent", version)
         while parent and parent.get("right", version) == node:
-            node = parent 
+            node = parent
         return node.get("parent", version)
 
     def _transplant(self, old, node, version):
@@ -245,4 +245,3 @@ class PartialPersistentBst:
         self._inorder(node.get("left", version), result, version)
         result.append(node.key)
         self._inorder(node.get("right", version), result, version)
-
