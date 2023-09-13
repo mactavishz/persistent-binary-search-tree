@@ -7,8 +7,13 @@ Record = namedtuple("VField", ("field", "value", "version"))
 
 
 class FatNode:
-    key = lambda t: t.version
-    compare = lambda x, y: 1 if x > y else -1 if x < y else 0
+    @staticmethod
+    def key(t: Record):
+        return t.version
+
+    @staticmethod
+    def compare(x, y):
+        return 1 if x > y else -1 if x < y else 0
 
     def __init__(self, key: Any, version: OrderedNode):
         """
@@ -60,7 +65,7 @@ class FatNode:
                 case "parent":
                     record = self._vparent.search_le(version)
             if not record:
-                # if we can not find a suitable version of record 
+                # if we can not find a suitable version of record
                 # that is less or equal than the given version
                 # then we return the latest version of the record
                 return self.get(attr, self.version)
