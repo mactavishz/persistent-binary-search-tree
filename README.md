@@ -60,7 +60,7 @@ from pbst.lib.bst import (
 
 Partial Persistence is a weaker form of persistence. It allows us to access the older version of the data structure but not to modify it. **You can only update the data structure based on the most recent version.**
 
-The partial persistent binary search tree is implemented in the `lib.pp_fatnode_bst` and the `lib.pp_path_copying_bst` module. Those are two different implementations but provide the same interfaces.
+The partial persistent binary search tree is implemented in the `lib.pp_fatnode_bst` and the `lib.pp_node_copying_bst` module. Those are two different implementations but provide the same interfaces.
 
 #### Using Fat Node Implementation
 
@@ -71,12 +71,12 @@ from pbst.lib.pp_fatnode_bst import (
 )
 ```
 
-#### Using Path Copying Implementation
+#### Using Node Copying Implementation
 
 ```python
-from pbst.lib.pp_path_copying_bst import (
-    PartialPersistentBst as PPPathCopyingBst,
-    PNode as PPPathCopyingNode
+from pbst.lib.pp_node_copying_bst import (
+    PartialPersistentBst as PPNodeCopyingBst,
+    PNode as PPNodeCopyingNode
 )
 ```
 
@@ -91,7 +91,7 @@ The partial persistent binary search tree has the following methods:
 
 ```python
 # You can use the fat node variant to achieve the same result.
-bst = PPPathCopyingBst() # version -1
+bst = PPNodeCopyingBst() # version -1
 bst.insert(4) # version 0
 bst.insert(1) # version 1
 bst.insert(3) # version 2

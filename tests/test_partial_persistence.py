@@ -2,12 +2,14 @@ import pytest
 import random
 import os
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from lib.pp_naive_bst import PartialPersistentBst as PPNaiveBst
-from lib.pp_fatnode_bst import PartialPersistentBst as PPFatNodeBst 
-from lib.pp_path_copying_bst import PartialPersistentBst as PPPathCopyingBst
+from lib.pp_fatnode_bst import PartialPersistentBst as PPFatNodeBst
+from lib.pp_node_copying_bst import PartialPersistentBst as PPPathCopyingBst
 from copy import copy
+
 
 @pytest.mark.parametrize("Bst", [PPNaiveBst, PPFatNodeBst, PPPathCopyingBst])
 class TestPartialPersistence:
@@ -18,7 +20,7 @@ class TestPartialPersistence:
         for i in control:
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i) 
+            node = tree.search(i)
             # print(f"version: {version}, insert: {i}, search get: {node}")
             assert node.key == i
             node = tree.search(i, version - 1)
@@ -34,7 +36,7 @@ class TestPartialPersistence:
         for i in control[:k1]:
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i) 
+            node = tree.search(i)
             # print(f"version: {version}, insert: {i}, search get: {node}")
             assert node.key == i
             node = tree.search(i, version - 1)
@@ -43,7 +45,7 @@ class TestPartialPersistence:
         tree.insert(control[k1:k2])
         version = tree.get_latest_version()
         for i in control[k1:k2]:
-            node = tree.search(i) 
+            node = tree.search(i)
             # print(f"version: {version}, insert: {i}, search get: {node}")
             assert node.key == i
             node = tree.search(i, version - 1)
@@ -52,7 +54,7 @@ class TestPartialPersistence:
         for i in control[k2:]:
             tree.insert(i)
             version = tree.get_latest_version()
-            node = tree.search(i) 
+            node = tree.search(i)
             # print(f"version: {version}, insert: {i}, search get: {node}")
             assert node.key == i
             node = tree.search(i, version - 1)
@@ -93,7 +95,7 @@ class TestPartialPersistence:
             node = tree.search(key)
             assert node is None
             assert tree.inorder() == sorted(copy_control)
-        
+
     def test_delete_random(self, Bst):
         tree = Bst()
         control = [i for i in range(100)]
@@ -138,28 +140,27 @@ class TestPartialPersistence:
         for i in range(100):
             tree.insert(i)
         assert tree.inorder() == [i for i in range(100)]
-        for i in reversed(range(100)): 
+        for i in reversed(range(100)):
             tree.delete(i)
         assert tree.inorder() == []
         for i in range(100):
             tree.insert(i)
         assert tree.inorder() == [i for i in range(100)]
 
-
     def test_manual_random(self, Bst):
         tree = Bst()
         tree.insert([8, 3, 10])  # version 0
         tree.insert(1)  # version 1
         tree.insert(6)  # version 2
-        tree.insert([14, 4]) # version 3
+        tree.insert([14, 4])  # version 3
         tree.insert(7)  # version 4
         tree.delete(4)  # version 5
         tree.delete([6, 3])  # version 6
         tree.delete(8)  # version 7
-        tree.insert(0) # version 8
-        tree.insert([2, 5]) # version 9
-        tree.delete(tree.inorder(9)) # version 10
-        tree.insert(1) # version 11
+        tree.insert(0)  # version 8
+        tree.insert([2, 5])  # version 9
+        tree.delete(tree.inorder(9))  # version 10
+        tree.insert(1)  # version 11
 
         # check if the nodes are inserted correctly
         assert tree.inorder(0) == [3, 8, 10]
@@ -180,7 +181,7 @@ class TestPartialPersistence:
         assert tree.search(7, 9).key == 7
         assert tree.search(10, 9).key == 10
         assert tree.search(14, 9).key == 14
-        
+
         # check if the nodes after the deletion don't exist
         assert tree.search(4, 5) is None
         assert tree.search(6, 6) is None

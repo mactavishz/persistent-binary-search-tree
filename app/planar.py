@@ -10,7 +10,7 @@ import pywavefront
 from typing import cast
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
-from lib.pp_path_copying_bst import PartialPersistentBst  # noqa
+from lib.pp_node_copying_bst import PartialPersistentBst  # noqa
 from lib.bst import Bst, BstNode  # noqa
 from itertools import cycle  # noqa
 from utils import (  # noqa
