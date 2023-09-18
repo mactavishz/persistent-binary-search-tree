@@ -1,7 +1,5 @@
 from typing import Optional
-from collections import namedtuple
-
-Record = namedtuple("VField", ("field", "value", "version"))
+from .mod_record import ModRecord
 
 
 class PNode:
@@ -20,7 +18,7 @@ class PNode:
         self.right: Optional[PNode] = None
         # the parent pointer is essentially the back pointer to its predecessor
         self.parent: Optional[PNode] = None
-        self.mods: list[Record | None] = [None, None]
+        self.mods: list[ModRecord | None] = [None, None]
         self.copy = None
 
     def __str__(self):
@@ -99,7 +97,7 @@ class PNode:
             # check if there's still available space for new mods
             i = self.next_mod(attr, version)
             if i != -1:  # if there's still available mods
-                self.mods[i] = Record(attr, new_val, version)
+                self.mods[i] = ModRecord(attr, new_val, version)
             else:  # if there's no available space for new mods, we create a new node
                 new_node = PNode(self.tree, self.key, version)
                 new_node.left = self.left

@@ -1,7 +1,5 @@
 from .bst import Bst
-from collections import namedtuple
-
-Record = namedtuple("VField", ("field", "value", "version"))
+from .mod_record import ModRecord
 
 
 class FatNode:
@@ -20,7 +18,7 @@ class FatNode:
         self._vparent = Bst(FatNode.key)
 
     @staticmethod
-    def key(t: Record):
+    def key(t: ModRecord):
         return t.version
 
     def __str__(self):
@@ -74,14 +72,16 @@ class FatNode:
         else:
             match attr:
                 case "left":
-                    self._vleft.insert(Record("left", new_val, version), overwrite=True)
+                    self._vleft.insert(
+                        ModRecord("left", new_val, version), overwrite=True
+                    )
                 case "right":
                     self._vright.insert(
-                        Record("right", new_val, version), overwrite=True
+                        ModRecord("right", new_val, version), overwrite=True
                     )
                 case "parent":
                     self._vparent.insert(
-                        Record("parent", new_val, version), overwrite=True
+                        ModRecord("parent", new_val, version), overwrite=True
                     )
 
 

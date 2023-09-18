@@ -1,14 +1,12 @@
 from .bst import Bst
 from .ordered_list import OrderedList, OrderedNode
-from collections import namedtuple
+from .mod_record import ModRecord
 from typing import Any
-
-Record = namedtuple("VField", ("field", "value", "version"))
 
 
 class FatNode:
     @staticmethod
-    def key(t: Record):
+    def key(t: ModRecord):
         return t.version
 
     @staticmethod
@@ -50,11 +48,11 @@ class FatNode:
             case "parent":
                 self.parent = new_val
 
-    def get(self, attr, version) -> Record:
+    def get(self, attr, version) -> ModRecord:
         if version == self.version:
-            return Record(attr, self[attr], version)
+            return ModRecord(attr, self[attr], version)
         elif version < self.version:
-            return Record(attr, None, version)
+            return ModRecord(attr, None, version)
         else:
             record = None
             match attr:
@@ -106,11 +104,11 @@ class FatNode:
     def _update_attr(self, attr, value, version):
         match attr:
             case "left":
-                self._vleft.insert(Record("left", value, version))
+                self._vleft.insert(ModRecord("left", value, version))
             case "right":
-                self._vright.insert(Record("right", value, version))
+                self._vright.insert(ModRecord("right", value, version))
             case "parent":
-                self._vparent.insert(Record("parent", value, version))
+                self._vparent.insert(ModRecord("parent", value, version))
 
 
 class RootNode:

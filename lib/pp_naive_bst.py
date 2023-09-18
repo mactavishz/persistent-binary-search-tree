@@ -1,6 +1,7 @@
 from .bst import Bst
 from copy import deepcopy
 
+
 class PartialPersistentBst:
     def __init__(self):
         self.roots = []
@@ -27,7 +28,6 @@ class PartialPersistentBst:
         for k in nodes:
             root.insert(k)
 
-
     def search(self, key, version=None):
         if version is None:
             version = self.get_latest_version()
@@ -36,7 +36,7 @@ class PartialPersistentBst:
         else:
             version = min(self.get_latest_version(), version)
             root = self.roots[version]
-            return root.search(key) 
+            return root.search(key)
 
     def delete(self, key):
         nodes = []
