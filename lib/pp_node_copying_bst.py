@@ -73,10 +73,7 @@ class PNode:
                 # then we return the latest version of the record
                 return self.get(attr, self.version)
             else:
-                node = record.value
-                while node and node.copy and node.copy.version <= version:
-                    node = node.copy
-                return node
+                return record.value
 
     def set(self, attr, new_val, version):
         # get the latest version of the node
@@ -88,12 +85,6 @@ class PNode:
         elif version < self.version:
             return
         else:
-            # if there is a copy node, we update the copy node
-            # since copy node always has a newer version than the node itself
-            if self.copy:
-                self.copy.set(attr, new_val, version)
-                return
-            # if there's no copy node, we first
             # check if there's still available space for new mods
             i = self.next_mod(attr, version)
             if i != -1:  # if there's still available mods
