@@ -7,6 +7,6 @@ app2: venv
 	$(VENV)/python app/planar.py 2
 
 test: venv
-	$(VENV)/pytest tests
+	$(VENV)/pytest tests -v
 
 include Makefile.venv
