@@ -174,6 +174,7 @@ class PartialPersistentBst:
         return len(self.roots) - 1
 
     def update_pointers(self):
+        # update the pointers recursively (in an iterative manner)
         while len(self.update_sets) > 0:
             node = self.update_sets.pop()
             version = node.version
@@ -188,7 +189,6 @@ class PartialPersistentBst:
                 continue
             parent = PNode.get_live_node(parent)
             parent_l = PNode.get_live_node(parent.get("left", version))
-            # update the pointers recursively (in an iterative manner)
             if parent_l == node:
                 parent.set("left", node, version)
             else:
