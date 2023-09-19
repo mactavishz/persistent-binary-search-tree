@@ -1,5 +1,6 @@
 from copy import deepcopy
 
+
 class BstNode:
     def __init__(self, key):
         self.left = None
@@ -43,14 +44,14 @@ class Bst:
         new_bst.root = deepcopy(self.root, memo)
         return new_bst
 
-    def insert(self, key, overwrite=False):
+    def insert(self, key, overwrite=True):
         if not self.root:
             self.root = BstNode(key)
             return self.root
         else:
             return self._insert(BstNode(key), overwrite=overwrite)
 
-    def _insert(self, node, overwrite=False):
+    def _insert(self, node, overwrite=True):
         root, parent = self.root, None
         while root:
             parent = root
@@ -61,8 +62,7 @@ class Bst:
             else:
                 if overwrite:
                     root.key = node.key
-                # print(f"Key: {root.key} already exists in the tree.")
-                return None
+                return root
 
         node.parent = parent
         assert parent is not None
