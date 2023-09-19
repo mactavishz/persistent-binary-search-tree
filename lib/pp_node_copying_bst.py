@@ -1,4 +1,5 @@
 from typing import Optional
+from copy import copy
 from .mod_record import ModRecord
 
 
@@ -16,13 +17,25 @@ class PNode:
         self.version: int = version
         self.left: Optional[PNode] = None
         self.right: Optional[PNode] = None
-        # the parent pointer is essentially the back pointer to its predecessor
+        # the parent pointer is essentially the reverse pointer to its predecessor
         self.parent: Optional[PNode] = None
         self.mods: list[ModRecord | None] = [None, None]
         self.copy = None
 
     def __str__(self):
         return f"PNode(key: {self.key}), version: {self.version}"
+
+    def __copy__(self):
+        """
+        Everything except mods are copied to the new node
+        """
+        new_node = PNode(self.tree, self.key, self.version)
+
+        new_node.left = self.left
+        new_node.right = self.right
+        new_node.parent = self.parent
+
+        return new_node
 
     def next_mod(self, attr, version):
         if self.mods[0] is None and self.mods[1] is None:
@@ -89,27 +102,20 @@ class PNode:
             i = self.next_mod(attr, version)
             if i != -1:  # if there's still available mods
                 self.mods[i] = ModRecord(attr, new_val, version)
-            else:  # if there's no available space for new mods, we create a new node
-                new_node = PNode(self.tree, self.key, version)
-                new_node.left = self.left
-                new_node.right = self.right
-                new_node.parent = self.parent
+            else:  # if there's no available space for new mods, we copy the node
+                new_node = copy(self)
+                # set the version of the copy to the latest version
+                new_node.version = version
                 # apply all changes stored in mods to the new node in its latest version
                 for mod in self.mods:
                     if mod:
                         new_node.set(mod.field, mod.value, version)
+                # apply the current update
                 new_node.set(attr, new_val, version)
                 # update the copy pointer in the old node
                 self.copy = new_node
-                # update back pointers in the node's children (in latest version)
-                left = new_node.left
-                right = new_node.right
-                if left:
-                    left = PNode.get_live_node(left)
-                    left.parent = new_node
-                if right:
-                    right = PNode.get_live_node(right)
-                    right.parent = new_node
+                # update reverse pointers in the node's children (in latest version)
+                PNode.update_reverse_pointers(new_node)
                 # add the new copy node to the update set
                 self.tree.update_sets.append(new_node)
                 return
@@ -128,6 +134,19 @@ class PNode:
                 else:
                     record = mod_2
         return record
+
+    @staticmethod
+    def update_reverse_pointers(node):
+        if node is None:
+            return
+        left = node.left
+        right = node.right
+        if left:
+            left = PNode.get_live_node(left)
+            left.parent = node
+        if right:
+            right = PNode.get_live_node(right)
+            right.parent = node
 
     @staticmethod
     def get_live_node(node):
@@ -169,6 +188,7 @@ class PartialPersistentBst:
                 continue
             parent = PNode.get_live_node(parent)
             parent_l = PNode.get_live_node(parent.get("left", version))
+            # update the pointers recursively (in an iterative manner)
             if parent_l == node:
                 parent.set("left", node, version)
             else:
