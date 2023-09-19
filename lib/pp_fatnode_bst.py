@@ -72,17 +72,11 @@ class FatNode:
         else:
             match attr:
                 case "left":
-                    self._vleft.insert(
-                        ModRecord("left", new_val, version), overwrite=True
-                    )
+                    self._vleft.insert(ModRecord("left", new_val, version))
                 case "right":
-                    self._vright.insert(
-                        ModRecord("right", new_val, version), overwrite=True
-                    )
+                    self._vright.insert(ModRecord("right", new_val, version))
                 case "parent":
-                    self._vparent.insert(
-                        ModRecord("parent", new_val, version), overwrite=True
-                    )
+                    self._vparent.insert(ModRecord("parent", new_val, version))
 
 
 class PartialPersistentBst:
