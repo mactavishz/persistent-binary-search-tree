@@ -126,7 +126,7 @@ class FullPersistentBst:
         self.__latest_version = -1
         self.version_list = OrderedList()
 
-    def create_root(self, node: FatNode, version: OrderedNode):
+    def _create_root(self, node: FatNode, version: OrderedNode):
         self.roots.insert(RootNode(node, version))
 
     def get_latest_version(self):
@@ -141,7 +141,7 @@ class FullPersistentBst:
         if self.get_latest_version() == -1:
             self._inc_latest_version()
             new_v = self.version_list.insert(OrderedNode(self.__latest_version))
-            self.create_root(FatNode(key, new_v), new_v)
+            self._create_root(FatNode(key, new_v), new_v)
         else:
             last_v = version if version else self.version_list.get_last()
             new_v = OrderedNode(self._inc_latest_version())
@@ -155,10 +155,10 @@ class FullPersistentBst:
         if root:
             root = root.key.next
             if root.key is None:
-                self.create_root(FatNode(node.key, version), version)
+                self._create_root(FatNode(node.key, version), version)
                 return
         else:
-            self.create_root(FatNode(node.key, version), version)
+            self._create_root(FatNode(node.key, version), version)
             return
 
         parent = None
@@ -258,9 +258,9 @@ class FullPersistentBst:
         old_parent = old.get("parent", version).value
         if not old_parent:
             if node:
-                self.create_root(node, version)
+                self._create_root(node, version)
             else:
-                self.create_root(FatNode(None, version), version)
+                self._create_root(FatNode(None, version), version)
         elif old == old_parent.get("left", version).value:
             old_parent.set("left", node, version)
         else:
