@@ -9,4 +9,7 @@ app2: venv
 test: venv
 	$(VENV)/pytest tests -v
 
+benchmark: venv
+	$(VENV)/python benchmarks/benchmarks.py
+
 include Makefile.venv
