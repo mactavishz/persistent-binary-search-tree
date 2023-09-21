@@ -16,6 +16,9 @@ benchmark_2: venv
 	$(VENV)/python benchmarks/partial_persistence.py
 
 benchmark_3: venv
-	$(VENV)/python benchmarks/memory.py
+	PYTHONMALLOC=malloc $(VENV)/python benchmarks/memory.py
+
+clean:
+	rm -rf benchmarks/results/*.{bin,json}
 
 include Makefile.venv
