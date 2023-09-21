@@ -10,15 +10,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from lib.bst import Bst
 from lib.pp_naive_bst import PartialPersistentBst as PPNaiveBst
 from lib.pp_fatnode_bst import PartialPersistentBst as PPFatNodeBst
-from lib.pp_node_copying_bst import PartialPersistentBst as PPPathCopyingBst
+from lib.pp_node_copying_bst import PartialPersistentBst as PPNodeCopyingBst
 
 iterations = 10
 perf_range = [2**i for i in range(4, 12)]
 Bst_classes = [
-    (Bst, "Standard BST"),
-    (PPFatNodeBst, "Fat Node PP BST"),
-    (PPPathCopyingBst, "Node-Copying PP BST"),
-    (PPNaiveBst, "Naive PP BST"),
+    (Bst, "Standard"),
+    (PPFatNodeBst, "Fat Node"),
+    (PPNodeCopyingBst, "Node-Copying"),
+    (PPNaiveBst, "Naive"),
 ]
 
 
@@ -39,7 +39,6 @@ def batch_op(op, tree, targets=[]):
 
 def run_insert_prefs():
     gc.disable()
-    title = "Benchmark: insertions"
     data = []
     for cls, _ in Bst_classes:
         rows = []
@@ -59,12 +58,11 @@ def run_insert_prefs():
             rows.append(ms)
         data.append(rows)
     gc.enable()
-    return title, data
+    return data
 
 
 def run_search_prefs():
     gc.disable()
-    title = "Benchmark: search"
     data = []
     for cls, _ in Bst_classes:
         rows = []
@@ -88,12 +86,11 @@ def run_search_prefs():
             rows.append(ms)
         data.append(rows)
     gc.enable()
-    return title, data
+    return data
 
 
 def run_delete_prefs():
     gc.disable()
-    title = "Benchmark: deletions"
     data = []
     for cls, _ in Bst_classes:
         rows = []
@@ -117,12 +114,11 @@ def run_delete_prefs():
             rows.append(ms)
         data.append(rows)
     gc.enable()
-    return title, data
+    return data
 
 
 def run_inorder_prefs():
     gc.disable()
-    title = "Benchmark: inorder traversal"
     data = []
     for cls, _ in Bst_classes:
         rows = []
@@ -140,36 +136,32 @@ def run_inorder_prefs():
             rows.append(ms)
         data.append(rows)
     gc.enable()
-    return title, data
+    return data
 
 
-title, data = run_insert_prefs()
+data = run_insert_prefs()
 fig, axs = plt.subplots(ncols=2, nrows=2, figsize=(16, 9), layout="constrained")
-axs[0, 0].set_title(title)
 axs[0, 0].set_xlabel("Number of insertions")
 axs[0, 0].set_ylabel("Time (ms), log")
 axs[0, 0].set_yscale("log")
 for i, (cls, name) in enumerate(Bst_classes):
     axs[0, 0].plot(perf_range, data[i], label=name)
 #
-title, data = run_search_prefs()
-axs[0, 1].set_title(title)
+data = run_search_prefs()
 axs[0, 1].set_xlabel("Number of search")
 axs[0, 1].set_ylabel("Time (ms)")
 axs[0, 1].set_yscale("linear")
 for i, (cls, name) in enumerate(Bst_classes):
     axs[0, 1].plot(perf_range, data[i], label=name)
 
-title, data = run_delete_prefs()
-axs[1, 0].set_title(title)
+data = run_delete_prefs()
 axs[1, 0].set_xlabel("Number of deletions")
 axs[1, 0].set_ylabel("Time (ms), log")
 axs[1, 0].set_yscale("log")
 for i, (cls, name) in enumerate(Bst_classes):
     axs[1, 0].plot(perf_range, data[i], label=name)
 
-title, data = run_inorder_prefs()
-axs[1, 1].set_title(title)
+data = run_inorder_prefs()
 axs[1, 1].set_xlabel("Number of nodes")
 axs[1, 1].set_ylabel("Time (ms)")
 axs[1, 1].set_yscale("linear")

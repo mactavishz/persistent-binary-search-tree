@@ -9,15 +9,15 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from lib.pp_naive_bst import PartialPersistentBst as PPNaiveBst
 from lib.pp_fatnode_bst import PartialPersistentBst as PPFatNodeBst
-from lib.pp_node_copying_bst import PartialPersistentBst as PPPathCopyingBst
+from lib.pp_node_copying_bst import PartialPersistentBst as PPNodeCopyingBst
 
 iterations = 10
 perf_range = [2**i for i in range(4, 12)]
 perf_range_more = [2**i for i in range(4, 17)]
 Bst_classes = [
-    (PPFatNodeBst, "Fat Node PP BST"),
-    (PPPathCopyingBst, "Node-Copying PP BST"),
-    (PPNaiveBst, "Naive PP BST"),
+    (PPFatNodeBst, "Fat Node"),
+    (PPNodeCopyingBst, "Node-Copying"),
+    (PPNaiveBst, "Naive"),
 ]
 
 
@@ -34,7 +34,6 @@ def mixed_ops(tree, op_arr):
 
 def run_mixed_perf(classes, prange):
     gc.disable()
-    title = "Benchmark: mixed random opeartions"
     data = []
     for cls, _ in classes:
         rows = []
@@ -70,12 +69,11 @@ def run_mixed_perf(classes, prange):
             rows.append(ms)
         data.append(rows)
     gc.enable()
-    return title, data
+    return data
 
 
-title, data = run_mixed_perf(Bst_classes, perf_range)
+data = run_mixed_perf(Bst_classes, perf_range)
 fig, axs = plt.subplots(ncols=2, nrows=1, figsize=(16, 5), layout="constrained")
-axs[0].set_title(title)
 axs[0].set_xlabel("Number of operations")
 axs[0].set_ylabel("Time (ms), log")
 axs[0].set_yscale("log")
@@ -83,8 +81,7 @@ for i, (cls, name) in enumerate(Bst_classes):
     axs[0].plot(perf_range, data[i], label=name)
 axs[0].legend()
 
-title, data = run_mixed_perf(Bst_classes[:-1], perf_range_more)
-axs[1].set_title(title)
+data = run_mixed_perf(Bst_classes[:-1], perf_range_more)
 axs[1].set_xlabel("Number of operations")
 axs[1].set_ylabel("Time (ms)")
 axs[1].set_yscale("linear")

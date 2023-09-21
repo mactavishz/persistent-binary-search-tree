@@ -7,11 +7,11 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from lib.pp_naive_bst import PartialPersistentBst as PPNaiveBst
 from lib.pp_fatnode_bst import PartialPersistentBst as PPFatNodeBst
-from lib.pp_node_copying_bst import PartialPersistentBst as PPPathCopyingBst
+from lib.pp_node_copying_bst import PartialPersistentBst as PPNodeCopyingBst
 from copy import copy
 
 
-@pytest.mark.parametrize("Bst", [PPNaiveBst, PPFatNodeBst, PPPathCopyingBst])
+@pytest.mark.parametrize("Bst", [PPNaiveBst, PPFatNodeBst, PPNodeCopyingBst])
 class TestPartialPersistence:
     def test_insert_search(self, Bst):
         tree = Bst()
