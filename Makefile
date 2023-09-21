@@ -9,7 +9,10 @@ app2: venv
 test: venv
 	$(VENV)/pytest tests -v
 
-benchmark: venv
-	$(VENV)/python benchmarks/benchmarks.py
+benchmark_1: venv
+	$(VENV)/python benchmarks/normal.py
+
+benchmark_2: venv
+	$(VENV)/python benchmarks/partial_persistence.py
 
 include Makefile.venv
