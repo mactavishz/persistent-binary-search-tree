@@ -15,4 +15,7 @@ benchmark_1: venv
 benchmark_2: venv
 	$(VENV)/python benchmarks/partial_persistence.py
 
+benchmark_3: venv
+	$(VENV)/python benchmarks/memory.py
+
 include Makefile.venv
