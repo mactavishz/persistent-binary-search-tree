@@ -10,10 +10,10 @@ test: venv
 	$(VENV)/pytest tests -v
 
 benchmark_1: venv
-	$(VENV)/python benchmarks/normal.py
+	PYTHONMALLOC=malloc $(VENV)/python benchmarks/normal.py
 
 benchmark_2: venv
-	$(VENV)/python benchmarks/partial_persistence.py
+	PYTHONMALLOC=malloc $(VENV)/python benchmarks/partial_persistence.py
 
 benchmark_3: venv
 	PYTHONMALLOC=malloc $(VENV)/python benchmarks/memory.py
