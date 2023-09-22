@@ -13,7 +13,7 @@ from lib.pp_fatnode_bst import PartialPersistentBst as PPFatNodeBst
 from lib.pp_node_copying_bst import PartialPersistentBst as PPNodeCopyingBst
 
 iterations = 10
-perf_range = [2**i for i in range(4, 12)]
+perf_range = [2**i for i in range(4, 11)]
 Bst_classes = [
     (Bst, "Standard"),
     (PPFatNodeBst, "Fat Node"),
