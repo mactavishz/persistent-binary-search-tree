@@ -1,17 +1,11 @@
-# TypeScript Rewrite
+# TypeScript Library + Web Demo
 
-This directory contains the TypeScript rewrite of the BST logic for interactive web usage.
+This workspace now contains:
 
-Implemented in this phase:
-
-- plain binary search tree
-- partial persistent BST with node-copying only
-- vitest parity tests ported from the Python suite (partial persistence only)
-
-Not implemented in this phase:
-
-- fat-node persistence
-- full persistence
+- strict TypeScript implementations of the BST and partial persistent BST,
+- a strict numeric half-edge mesh implementation,
+- planar point-location utilities,
+- a simple React + D3 SPA for the two planar OBJ demos.
 
 ## Install
 
@@ -19,24 +13,38 @@ Not implemented in this phase:
 npm --prefix typescript install
 ```
 
-## Run tests
+## Run the web demo
+
+```bash
+npm --prefix typescript run dev
+```
+
+Then open the local Vite URL shown in the terminal.
+
+## Build
+
+```bash
+npm --prefix typescript run build
+```
+
+## Tests
 
 ```bash
 npm --prefix typescript run test -- --run
 ```
 
-Both environments are supported:
+Environment-specific test runs:
 
-- Browser-like runtime (default):
-
-```bash
-npm --prefix typescript run test:browser
-```
-
-- Node runtime:
+- Node:
 
 ```bash
 npm --prefix typescript run test:node
+```
+
+- Browser-like (jsdom):
+
+```bash
+npm --prefix typescript run test:browser
 ```
 
 ## Type check
@@ -45,24 +53,17 @@ npm --prefix typescript run test:node
 npm --prefix typescript run typecheck
 ```
 
-The TypeScript config is ESM + bundler-oriented (`moduleResolution: "Bundler"`) with DOM libs enabled, so the package can be consumed cleanly by both browser builds and Node.js ESM tooling.
+## What is included
 
-## Generic usage
+- `src/bst/` and `src/persistent/`: generic BST and partial persistent BST.
+- `src/vec/vec.ts`: numeric `Vec3` utility class.
+- `src/mesh/mesh.ts`: numeric half-edge mesh (`Vertex`, `HalfEdge`, `Face`, `Mesh`).
+- `src/mesh/obj-loader.ts`: OBJ parser for vertices/faces.
+- `src/planar/`: slab decomposition and point-location utilities.
+- `src/app/`: React components and D3 rendering logic for the demo SPA.
+- `public/models/`: copied demo meshes (`planar_1.obj`, `planar_2.obj`).
 
-```ts
-import { PartialPersistentBinarySearchTree } from "./src/index.js";
+## Notes
 
-type Item = { id: number; name: string };
-
-const tree = new PartialPersistentBinarySearchTree<Item, number>({
-  keyOf: (item) => item.id,
-  compare: (a, b) => a - b
-});
-
-tree.insert({ id: 2, name: "two" });
-tree.insert({ id: 1, name: "one" });
-const version = tree.getLatestVersion();
-
-console.log(tree.inorder(version)); // [1, 2]
-console.log(tree.search(2, version)?.value.name); // two
-```
+- The v1 web demo targets only the two provided planar OBJ models.
+- General planarity certification from the Python/NetworkX path is not ported in this phase.

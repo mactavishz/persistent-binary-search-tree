@@ -1,4 +1,4 @@
-.PHONY: app1 app2 test benchmark_1 benchmark_2 benchmark_3 clean venv benchmark_venv
+.PHONY: web app1 app2 test benchmark_1 benchmark_2 benchmark_3 clean venv benchmark_venv
 
 UV ?= uv
 VENVDIR ?= .venv
@@ -9,6 +9,10 @@ endif
 
 venv:
 	$(UV) sync --frozen
+
+web:
+	npm --prefix typescript install
+	npm --prefix typescript run dev
 
 benchmark_venv:
 	$(UV) sync --frozen --group benchmark

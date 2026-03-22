@@ -171,14 +171,18 @@ make test
 
 A common use case of persistent data structure is to solve the [planar point location problem](https://en.wikipedia.org/wiki/Point_location). This repo provides a demo application that uses the partial persistent binary search tree to solve the planar point location problem using [slab decomposition](https://en.wikipedia.org/wiki/Point_location#Slab_decomposition).
 
-The demo is implemented in the `app` directory. It uses [Matplotlib](https://matplotlib.org/) and [Networkx](https://networkx.github.io/) to let you interact with it and visualize the result.
+The web demo is implemented in `typescript/` as a React + D3 SPA. The original Python demo in `app/` (Matplotlib + NetworkX) is still available as a legacy reference.
 
 
 ```bash
-# run the first demo
-make
+# run the TypeScript web demo
+npm --prefix typescript install
+npm --prefix typescript run dev
 
-# run the second demo
+# run the legacy Python demo
+make app1
+
+# run the second legacy Python demo
 make app2
 ```
 
