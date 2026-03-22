@@ -3,3 +3,4 @@ __pycache__
 .venv
 benchmarks/results/*.bin
 benchmarks/results/*.json
+node_modules
