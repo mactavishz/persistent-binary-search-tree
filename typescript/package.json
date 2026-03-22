@@ -1,0 +1,18 @@
+{
+  "name": "persistent-bst-ts",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest",
+    "test:node": "vitest --run --environment node",
+    "test:browser": "vitest --run --environment jsdom",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.30",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.4"
+  }
+}
