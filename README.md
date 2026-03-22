@@ -18,6 +18,7 @@ With the persistent data structure, you can access the older version of the data
 ## Prerequisites
 
 - [Python](https://www.python.org/downloads/) 3.10 or higher.
+- [uv](https://docs.astral.sh/uv/) for dependency and virtual environment management.
 - [GNU Make](https://www.gnu.org/software/make/), for Windows users, you can install it via [Chocolatey](https://chocolatey.org/): `choco install make`.
 
 ## Getting Started
@@ -34,6 +35,12 @@ git clone https://github.com/mactavishz/persistent-binary-search-tree.git
 git clone git@github.com:mactavishz/persistent-binary-search-tree.git
 ```
 
+Then install project dependencies:
+
+```bash
+uv sync
+```
+
 ### Usage
 
 Suppose you cloned the repo under you project root directory with the name `pbst`.
@@ -43,7 +50,7 @@ Suppose you cloned the repo under you project root directory with the name `pbst
 The _normal_ binary search tree is implemented in the `lib.bst` module. The `Bst` class is the main class for the binary search tree. It has the following methods:
 
 ```python
-from pbst.lib.bst import (
+from lib.bst import (
     Bst,
     BstNode
 )
@@ -65,7 +72,7 @@ The partial persistent binary search tree is implemented in the `lib.pp_fatnode_
 #### Using Fat Node Implementation
 
 ```python
-from pbst.lib.pp_fatnode_bst import (
+from lib.pp_fatnode_bst import (
     PartialPersistentBst as PPFatNodeBst,
     FatNode as PPFatNode
 )
@@ -74,7 +81,7 @@ from pbst.lib.pp_fatnode_bst import (
 #### Using Node Copying Implementation
 
 ```python
-from pbst.lib.pp_node_copying_bst import (
+from lib.pp_node_copying_bst import (
     PartialPersistentBst as PPNodeCopyingBst,
     PNode as PPNodeCopyingNode
 )
@@ -110,7 +117,7 @@ Full Persistence allows us to access the older version of the data structure and
 Currently only the fat node variant is implemented:
 
 ```python
-from pbst.lib.fp_fatnode_bst import (
+from lib.fp_fatnode_bst import (
     FullPersistentBst as FPFatNodeBst,
     FatNode as FPFatNode
 )
