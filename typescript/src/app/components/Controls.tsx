@@ -1,10 +1,10 @@
 import type { JSX } from "react";
 
 interface ControlsProps {
-  readonly demo: "planar_1.obj" | "planar_2.obj";
+  readonly demo: "planar_1.obj" | "planar_2.obj" | "planar_3.obj";
   readonly canStart: boolean;
   readonly canClear: boolean;
-  readonly onDemoChange: (demo: "planar_1.obj" | "planar_2.obj") => void;
+  readonly onDemoChange: (demo: "planar_1.obj" | "planar_2.obj" | "planar_3.obj") => void;
   readonly onStart: () => void;
   readonly onClearPoints: () => void;
 }
@@ -20,13 +20,14 @@ export function Controls({
   return (
     <section className="controls-panel">
       <label>
-        Model
+        Presets
         <select
           value={demo}
-          onChange={(event) => onDemoChange(event.target.value as "planar_1.obj" | "planar_2.obj")}
+          onChange={(event) => onDemoChange(event.target.value as "planar_1.obj" | "planar_2.obj" | "planar_3.obj")}
         >
           <option value="planar_1.obj">planar_1.obj</option>
           <option value="planar_2.obj">planar_2.obj</option>
+          <option value="planar_3.obj">planar_3.obj</option>
         </select>
       </label>
 
