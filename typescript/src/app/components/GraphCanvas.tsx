@@ -11,9 +11,16 @@ export interface QueryPointRender {
   readonly label: string;
 }
 
+export interface SlabRender {
+  readonly name: string;
+  readonly start: number;
+  readonly end: number;
+}
+
 interface GraphCanvasProps {
   readonly model: GraphRenderModel;
   readonly queryPoints: QueryPointRender[];
+  readonly slabs?: readonly SlabRender[];
   readonly onCanvasClick: (x: number, y: number) => void;
 }
 
@@ -21,8 +28,12 @@ const WIDTH = 920;
 const HEIGHT = 640;
 const VERTEX_RADIUS = 14;
 const GRAPH_STROKE = "#444";
+const SLAB_STROKE = "#f97316";
+const SLAB_DASH_ARRAY = "4 4";
+const SLAB_BOTTOM_EXTENSION = VERTEX_RADIUS + 6;
+const SLAB_LABEL_OFFSET_Y = 12;
 
-export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasProps): JSX.Element {
+export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: GraphCanvasProps): JSX.Element {
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const scales = useMemo(() => {
@@ -60,6 +71,59 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
       )
       .attr("fill", "#ffffff")
       .attr("stroke", "none");
+
+    const slabMarkers = slabs
+      .filter((slab) => Number.isFinite(slab.end) && slab.end >= model.bounds.minX && slab.end <= model.bounds.maxX)
+      .map((slab) => ({
+        name: slab.name,
+        x: scales.x(slab.end)
+      }));
+    const slabBaseY = scales.y(model.bounds.minY);
+    const slabBottomY = Math.min(HEIGHT - 24, slabBaseY + SLAB_BOTTOM_EXTENSION);
+
+    root
+      .append("g")
+      .attr("class", "slab-lines")
+      .attr("pointer-events", "none")
+      .selectAll("line")
+      .data(slabMarkers)
+      .enter()
+      .append("line")
+      .attr("x1", (slab) => slab.x)
+      .attr("y1", scales.y(model.bounds.maxY))
+      .attr("x2", (slab) => slab.x)
+      .attr("y2", slabBottomY)
+      .attr("stroke", SLAB_STROKE)
+      .attr("stroke-width", 2)
+      .attr("stroke-dasharray", SLAB_DASH_ARRAY)
+      .attr("opacity", 0.9);
+
+    root
+      .append("g")
+      .attr("class", "slab-labels")
+      .attr("pointer-events", "none")
+      .selectAll("text")
+      .data(slabMarkers)
+      .enter()
+      .append("text")
+      .attr("x", (slab) => slab.x)
+      .attr("y", Math.min(HEIGHT - 10, slabBottomY + SLAB_LABEL_OFFSET_Y))
+      .attr("font-size", 14)
+      .attr("font-style", "italic")
+      .attr("font-weight", 600)
+      .attr("fill", SLAB_STROKE)
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .each(function renderSlabLabel(slab) {
+        const { letters, number } = splitLabelParts(slab.name);
+        const text = d3.select(this as SVGTextElement).text(letters);
+        if (number !== null) {
+          text.append("tspan")
+            .attr("class", "label-number")
+            .attr("dy", "3px")
+            .text(number);
+        }
+      });
 
     const uniqueEdgeMap = new Map<string, GraphRenderModel["halfEdges"][number]>();
     for (const edge of model.halfEdges) {
@@ -192,7 +256,7 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
       const y = scales.y.invert(sy);
       onCanvasClick(x, y);
     });
-  }, [model, onCanvasClick, queryPoints, scales]);
+  }, [model, onCanvasClick, queryPoints, scales, slabs]);
 
   return (
     <Paper className="graph-panel" withBorder radius="md" p="md">
@@ -201,7 +265,7 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
           Graph Canvas
         </Text>
         <Text c="dimmed" size="xs">
-          Click inside the graph to place query points.
+          Click inside the graph to place query points. A point belongs to the slab marked by the first dotted line to its right.
         </Text>
         <svg className="graph-canvas" ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} />
       </Stack>

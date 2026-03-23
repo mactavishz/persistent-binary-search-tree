@@ -5,7 +5,7 @@ import { parseObj } from "../mesh/obj-loader.js";
 import { buildPointLocationIndex, locatePoint } from "../planar/point-location.js";
 import { meshToRenderModel } from "../planar/render-model.js";
 import { Controls } from "./components/Controls.js";
-import { GraphCanvas, type QueryPointRender } from "./components/GraphCanvas.js";
+import { GraphCanvas, type QueryPointRender, type SlabRender } from "./components/GraphCanvas.js";
 import { ResultsTable } from "./components/ResultsTable.js";
 
 type DemoModel = "planar_1.obj" | "planar_2.obj" | "planar_3.obj";
@@ -56,6 +56,7 @@ export default function App(): JSX.Element {
   const [loaded, setLoaded] = useState<LoadedState | null>(null);
   const [points, setPoints] = useState<QueryPoint[]>([]);
   const [rows, setRows] = useState<QueryRow[]>([]);
+  const [showSlabs, setShowSlabs] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -63,6 +64,7 @@ export default function App(): JSX.Element {
     setLoaded(null);
     setPoints([]);
     setRows([]);
+    setShowSlabs(false);
     setError(null);
 
     void loadDemoMesh(demo)
@@ -86,6 +88,18 @@ export default function App(): JSX.Element {
     () => points.map((point) => ({ x: point.x, y: point.y, label: point.name })),
     [points]
   );
+
+  const slabLines: SlabRender[] = useMemo(() => {
+    if (!showSlabs || loaded === null) {
+      return [];
+    }
+
+    return loaded.locator.slabIndex.slabs.map((slab) => ({
+      name: slab.name,
+      start: slab.start,
+      end: slab.end
+    }));
+  }, [loaded, showSlabs]);
 
   const onCanvasClick = (x: number, y: number): void => {
     setPoints((prev) => [
@@ -114,11 +128,13 @@ export default function App(): JSX.Element {
       };
     });
     setRows(nextRows);
+    setShowSlabs(true);
   };
 
   const onClearPoints = (): void => {
     setPoints([]);
     setRows([]);
+    setShowSlabs(false);
   };
 
   if (error) {
@@ -145,7 +161,7 @@ export default function App(): JSX.Element {
         onClearPoints={onClearPoints}
       />
 
-      <GraphCanvas model={loaded.renderModel} queryPoints={queryPoints} onCanvasClick={onCanvasClick} />
+      <GraphCanvas model={loaded.renderModel} queryPoints={queryPoints} slabs={slabLines} onCanvasClick={onCanvasClick} />
 
       <ResultsTable rows={rows} />
     </main>

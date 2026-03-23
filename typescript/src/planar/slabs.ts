@@ -153,7 +153,7 @@ export function buildSlabIndex(mesh: Mesh): SlabIndex {
       .sort((a, b) => compareSegmentKeys(a.key, b.key));
 
     const slab: SlabRecord = {
-      name: `slab${i}`,
+      name: `s${i}`,
       start,
       end,
       sampleX,

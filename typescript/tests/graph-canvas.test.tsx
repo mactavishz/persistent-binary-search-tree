@@ -4,7 +4,7 @@ import { MantineProvider } from "@mantine/core";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { GraphCanvas } from "../src/app/components/GraphCanvas.js";
+import { GraphCanvas, type SlabRender } from "../src/app/components/GraphCanvas.js";
 import type { GraphRenderModel } from "../src/planar/render-model.js";
 
 beforeAll(() => {
@@ -60,7 +60,7 @@ const MODEL: GraphRenderModel = {
   }
 };
 
-function renderCanvas() {
+function renderCanvas(options?: { readonly slabs?: readonly SlabRender[] }) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -69,7 +69,12 @@ function renderCanvas() {
   flushSync(() => {
     root.render(
       <MantineProvider env="test" forceColorScheme="light">
-        <GraphCanvas model={MODEL} queryPoints={[]} onCanvasClick={onCanvasClick} />
+        <GraphCanvas
+          model={MODEL}
+          queryPoints={[]}
+          slabs={options?.slabs ?? []}
+          onCanvasClick={onCanvasClick}
+        />
       </MantineProvider>
     );
   });
@@ -115,5 +120,32 @@ describe("GraphCanvas", () => {
 
     expect(vertexNumber?.textContent).toBe("0");
     expect(faceNumber?.textContent).toBe("0");
+  });
+
+  it("renders slab lines behind vertices with labels below lines", () => {
+    const { container } = renderCanvas({
+      slabs: [
+        { name: "s0", start: 0.7, end: 0.72 },
+        { name: "s1", start: 0.75, end: 0.77 },
+        { name: "s2", start: 1.4, end: 1.6 }
+      ]
+    });
+
+    const slabLines = container.querySelectorAll(".slab-lines line");
+    const slabLabels = container.querySelectorAll(".slab-labels text");
+    const groupClasses = Array.from(container.querySelectorAll("svg > g > g")).map(
+      (node) => node.getAttribute("class")
+    );
+
+    expect(slabLines).toHaveLength(3);
+    expect(slabLabels).toHaveLength(3);
+    expect(groupClasses.indexOf("slab-lines")).toBeGreaterThanOrEqual(0);
+    expect(groupClasses.indexOf("vertices")).toBeGreaterThanOrEqual(0);
+    expect(groupClasses.indexOf("slab-lines")).toBeLessThan(groupClasses.indexOf("vertices"));
+
+    const lineBottomYs = Array.from(slabLines).map((node) => Number(node.getAttribute("y2")));
+    const labelYs = Array.from(slabLabels).map((node) => Number(node.getAttribute("y")));
+    expect(new Set(labelYs).size).toBe(1);
+    expect(labelYs.every((labelY) => lineBottomYs.every((lineY) => labelY > lineY))).toBe(true);
   });
 });
