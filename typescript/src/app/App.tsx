@@ -8,7 +8,7 @@ import { Controls } from "./components/Controls.js";
 import { GraphCanvas, type QueryPointRender } from "./components/GraphCanvas.js";
 import { ResultsTable } from "./components/ResultsTable.js";
 
-type DemoModel = "planar_1.obj" | "planar_2.obj";
+type DemoModel = "planar_1.obj" | "planar_2.obj" | "planar_3.obj";
 
 interface QueryPoint {
   readonly name: string;

@@ -1,10 +1,19 @@
+import { Button, Group, Paper, Select } from "@mantine/core";
 import type { JSX } from "react";
 
+const DEMO_OPTIONS = [
+  { value: "planar_1.obj", label: "plane graph I" },
+  { value: "planar_2.obj", label: "plane graph II" },
+  { value: "planar_3.obj", label: "plane graph III" }
+] as const;
+
+type DemoModel = (typeof DEMO_OPTIONS)[number]["value"];
+
 interface ControlsProps {
-  readonly demo: "planar_1.obj" | "planar_2.obj" | "planar_3.obj";
+  readonly demo: DemoModel;
   readonly canStart: boolean;
   readonly canClear: boolean;
-  readonly onDemoChange: (demo: "planar_1.obj" | "planar_2.obj" | "planar_3.obj") => void;
+  readonly onDemoChange: (demo: DemoModel) => void;
   readonly onStart: () => void;
   readonly onClearPoints: () => void;
 }
@@ -18,26 +27,29 @@ export function Controls({
   onClearPoints
 }: ControlsProps): JSX.Element {
   return (
-    <section className="controls-panel">
-      <label>
-        Presets
-        <select
+    <Paper className="controls-panel" withBorder radius="md" p="md">
+      <Group align="flex-end" gap="sm" wrap="wrap">
+        <Select
+          label="Presets"
+          data={DEMO_OPTIONS}
           value={demo}
-          onChange={(event) => onDemoChange(event.target.value as "planar_1.obj" | "planar_2.obj" | "planar_3.obj")}
-        >
-          <option value="planar_1.obj">planar_1.obj</option>
-          <option value="planar_2.obj">planar_2.obj</option>
-          <option value="planar_3.obj">planar_3.obj</option>
-        </select>
-      </label>
+          allowDeselect={false}
+          w={220}
+          onChange={(value) => {
+            if (value !== null) {
+              onDemoChange(value as DemoModel);
+            }
+          }}
+        />
 
-      <button type="button" onClick={onStart} disabled={!canStart}>
-        Start
-      </button>
+        <Button type="button" onClick={onStart} disabled={!canStart}>
+          Start
+        </Button>
 
-      <button type="button" onClick={onClearPoints} disabled={!canClear}>
-        Clear Points
-      </button>
-    </section>
+        <Button type="button" variant="default" onClick={onClearPoints} disabled={!canClear}>
+          Clear Points
+        </Button>
+      </Group>
+    </Paper>
   );
 }

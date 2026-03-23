@@ -1,4 +1,5 @@
 import * as d3 from "d3";
+import { Paper, Stack, Text } from "@mantine/core";
 import { useEffect, useMemo, useRef } from "react";
 import type { JSX } from "react";
 import type { GraphRenderModel } from "../../planar/render-model.js";
@@ -193,5 +194,17 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
     });
   }, [model, onCanvasClick, queryPoints, scales]);
 
-  return <svg className="graph-canvas" ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} />;
+  return (
+    <Paper className="graph-panel" withBorder radius="md" p="md">
+      <Stack gap="xs">
+        <Text fw={600} size="sm">
+          Graph Canvas
+        </Text>
+        <Text c="dimmed" size="xs">
+          Click inside the graph to place query points.
+        </Text>
+        <svg className="graph-canvas" ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} />
+      </Stack>
+    </Paper>
+  );
 }

@@ -1,3 +1,4 @@
+import { Paper, Table, Text, Title } from "@mantine/core";
 import type { JSX } from "react";
 import { splitLabelParts } from "./label-parts.js";
 
@@ -24,43 +25,54 @@ function LabelText({ value }: { readonly value: string }): JSX.Element {
 }
 
 export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
+  const tableRows = rows.map((row) => (
+    <Table.Tr key={row.name}>
+      <Table.Td>
+        <LabelText value={row.name} />
+      </Table.Td>
+      <Table.Td>{row.x.toFixed(3)}</Table.Td>
+      <Table.Td>{row.y.toFixed(3)}</Table.Td>
+      <Table.Td>
+        <LabelText value={row.slab} />
+      </Table.Td>
+      <Table.Td>
+        <LabelText value={row.face} />
+      </Table.Td>
+    </Table.Tr>
+  ));
+
   return (
-    <section className="results-panel">
-      <h2>Point Location Results</h2>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>X</th>
-            <th>Y</th>
-            <th>Slab</th>
-            <th>Face</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.length === 0 ? (
-            <tr>
-              <td colSpan={5}>No results yet. Click to place points, then press Start.</td>
-            </tr>
-          ) : (
-            rows.map((row) => (
-              <tr key={row.name}>
-                <td>
-                  <LabelText value={row.name} />
-                </td>
-                <td>{row.x.toFixed(3)}</td>
-                <td>{row.y.toFixed(3)}</td>
-                <td>
-                  <LabelText value={row.slab} />
-                </td>
-                <td>
-                  <LabelText value={row.face} />
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </section>
+    <Paper className="results-panel" withBorder radius="md" p="md">
+      <Title order={3} mb="sm">
+        Point Location Results
+      </Title>
+
+      <Table.ScrollContainer minWidth={580}>
+        <Table withTableBorder withColumnBorders striped="odd" highlightOnHover={rows.length > 0}>
+          <Table.Thead>
+            <Table.Tr>
+              <Table.Th>Name</Table.Th>
+              <Table.Th>X</Table.Th>
+              <Table.Th>Y</Table.Th>
+              <Table.Th>Slab</Table.Th>
+              <Table.Th>Face</Table.Th>
+            </Table.Tr>
+          </Table.Thead>
+          <Table.Tbody>
+            {rows.length === 0 ? (
+              <Table.Tr>
+                <Table.Td colSpan={5}>
+                  <Text c="dimmed" ta="center">
+                    No results yet. Click to place points, then press Start.
+                  </Text>
+                </Table.Td>
+              </Table.Tr>
+            ) : (
+              tableRows
+            )}
+          </Table.Tbody>
+        </Table>
+      </Table.ScrollContainer>
+    </Paper>
   );
 }

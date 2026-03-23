@@ -1,10 +1,29 @@
 // @vitest-environment jsdom
 
+import { MantineProvider } from "@mantine/core";
 import { createRoot } from "react-dom/client";
 import { flushSync } from "react-dom";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { GraphCanvas } from "../src/app/components/GraphCanvas.js";
 import type { GraphRenderModel } from "../src/planar/render-model.js";
+
+beforeAll(() => {
+  if (typeof window.matchMedia !== "function") {
+    Object.defineProperty(window, "matchMedia", {
+      writable: true,
+      value: vi.fn().mockImplementation((query: string) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        dispatchEvent: () => false
+      }))
+    });
+  }
+});
 
 const MODEL: GraphRenderModel = {
   vertices: [
@@ -48,7 +67,11 @@ function renderCanvas() {
   const onCanvasClick = vi.fn();
 
   flushSync(() => {
-    root.render(<GraphCanvas model={MODEL} queryPoints={[]} onCanvasClick={onCanvasClick} />);
+    root.render(
+      <MantineProvider env="test" forceColorScheme="light">
+        <GraphCanvas model={MODEL} queryPoints={[]} onCanvasClick={onCanvasClick} />
+      </MantineProvider>
+    );
   });
 
   return { container, root, onCanvasClick };
