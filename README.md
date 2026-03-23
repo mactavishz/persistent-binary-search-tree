@@ -176,8 +176,8 @@ The web demo is implemented in `typescript/` as a React + D3 SPA. The original P
 
 ```bash
 # run the TypeScript web demo
-npm --prefix typescript install
-npm --prefix typescript run dev
+pnpm --dir typescript install
+pnpm --dir typescript dev
 
 # run the legacy Python demo
 make app1

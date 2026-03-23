@@ -10,13 +10,13 @@ This workspace now contains:
 ## Install
 
 ```bash
-npm --prefix typescript install
+pnpm --dir typescript install
 ```
 
 ## Run the web demo
 
 ```bash
-npm --prefix typescript run dev
+pnpm --dir typescript dev
 ```
 
 Then open the local Vite URL shown in the terminal.
@@ -24,13 +24,13 @@ Then open the local Vite URL shown in the terminal.
 ## Build
 
 ```bash
-npm --prefix typescript run build
+pnpm --dir typescript build
 ```
 
 ## Tests
 
 ```bash
-npm --prefix typescript run test -- --run
+pnpm --dir typescript test -- --run
 ```
 
 Environment-specific test runs:
@@ -38,19 +38,19 @@ Environment-specific test runs:
 - Node:
 
 ```bash
-npm --prefix typescript run test:node
+pnpm --dir typescript test:node
 ```
 
 - Browser-like (jsdom):
 
 ```bash
-npm --prefix typescript run test:browser
+pnpm --dir typescript test:browser
 ```
 
 ## Type check
 
 ```bash
-npm --prefix typescript run typecheck
+pnpm --dir typescript typecheck
 ```
 
 ## What is included

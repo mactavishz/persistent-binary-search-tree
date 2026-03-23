@@ -11,8 +11,8 @@ venv:
 	$(UV) sync --frozen
 
 web:
-	npm --prefix typescript install
-	npm --prefix typescript run dev
+	pnpm --dir typescript install
+	pnpm --dir typescript dev
 
 benchmark_venv:
 	$(UV) sync --frozen --group benchmark
