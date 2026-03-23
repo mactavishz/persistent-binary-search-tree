@@ -24,12 +24,19 @@ interface GraphCanvasProps {
   readonly onCanvasClick: (x: number, y: number) => void;
 }
 
-const WIDTH = 920;
-const HEIGHT = 640;
+const WIDTH = 720;
+const HEIGHT = 720;
 const VERTEX_RADIUS = 14;
 const GRAPH_STROKE = "#444";
 const SLAB_STROKE = "#f97316";
 const SLAB_DASH_ARRAY = "4 4";
+const PLOT_PADDING = {
+  left: 60,
+  right: 60,
+  top: 40,
+  bottom: 60
+} as const;
+const MIN_DOMAIN_SPAN = 1e-6;
 const SLAB_BOTTOM_EXTENSION = VERTEX_RADIUS + 6;
 const SLAB_LABEL_OFFSET_Y = 12;
 
@@ -37,14 +44,29 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const scales = useMemo(() => {
+    const domainWidth = Math.max(model.bounds.maxX - model.bounds.minX, MIN_DOMAIN_SPAN);
+    const domainHeight = Math.max(model.bounds.maxY - model.bounds.minY, MIN_DOMAIN_SPAN);
+    const availableWidth = WIDTH - PLOT_PADDING.left - PLOT_PADDING.right;
+    const availableHeight = HEIGHT - PLOT_PADDING.top - PLOT_PADDING.bottom;
+    const pixelsPerUnit = Math.min(availableWidth / domainWidth, availableHeight / domainHeight);
+    const drawWidth = domainWidth * pixelsPerUnit;
+    const drawHeight = domainHeight * pixelsPerUnit;
+    const xInset = (availableWidth - drawWidth) / 2;
+    const yInset = (availableHeight - drawHeight) / 2;
+
+    const xMin = PLOT_PADDING.left + xInset;
+    const xMax = xMin + drawWidth;
+    const yMax = HEIGHT - PLOT_PADDING.bottom - yInset;
+    const yMin = yMax - drawHeight;
+
     const x = d3
       .scaleLinear()
       .domain([model.bounds.minX, model.bounds.maxX])
-      .range([60, WIDTH - 60]);
+      .range([xMin, xMax]);
     const y = d3
       .scaleLinear()
       .domain([model.bounds.minY, model.bounds.maxY])
-      .range([HEIGHT - 60, 40]);
+      .range([yMax, yMin]);
     return { x, y };
   }, [model.bounds.maxX, model.bounds.maxY, model.bounds.minX, model.bounds.minY]);
 

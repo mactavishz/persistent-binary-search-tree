@@ -16,7 +16,7 @@ body {
 }
 
 .app-shell {
-  max-width: 1100px;
+  width: 720px;
   margin: 0 auto;
   padding: 20px;
   display: grid;
@@ -44,7 +44,7 @@ header p {
 .graph-canvas {
   width: 100%;
   display: block;
-  min-height: 380px;
+  aspect-ratio: 1 / 1;
   border-radius: 10px;
   border: 1px solid #cbd5e1;
   background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
@@ -95,9 +95,5 @@ header p {
 @media (max-width: 720px) {
   .app-shell {
     padding: 12px;
-  }
-
-  .graph-canvas {
-    min-height: 320px;
   }
 }
