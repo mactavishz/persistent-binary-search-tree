@@ -1,14 +1,15 @@
+import { Paper, Text, Textarea } from "@mantine/core";
 import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { Mesh } from "../mesh/mesh.js";
 import { parseObj } from "../mesh/obj-loader.js";
 import { buildPointLocationIndex, locatePoint } from "../planar/point-location.js";
 import { meshToRenderModel } from "../planar/render-model.js";
-import { Controls } from "./components/Controls.js";
+import { Controls, type DemoModel } from "./components/Controls.js";
 import { GraphCanvas, type QueryPointRender, type SlabRender } from "./components/GraphCanvas.js";
 import { ResultsTable } from "./components/ResultsTable.js";
 
-type DemoModel = "planar_1.obj" | "planar_2.obj" | "planar_3.obj";
+type PresetDemoModel = Exclude<DemoModel, "custom">;
 
 interface QueryPoint {
   readonly name: string;
@@ -27,21 +28,29 @@ interface LoadedState {
   readonly locator: ReturnType<typeof buildPointLocationIndex>;
 }
 
-async function loadDemoMesh(model: DemoModel): Promise<LoadedState> {
-  const response = await fetch(`/models/${model}`);
-  if (!response.ok) {
-    throw new Error(`Failed to load ${model}`);
-  }
+interface PresetLoadResult {
+  readonly objText: string;
+  readonly loaded: LoadedState;
+}
 
-  const text = await response.text();
-  const parsed = parseObj(text);
+const CUSTOM_OBJ_TEMPLATE = [
+  "# Write valid OBJ data to render your own planar graph",
+  "v 0 0 0",
+  "v 2 0 0",
+  "v 2 2 0",
+  "v 0 2 0",
+  "f 1 2 3 4"
+].join("\n");
+
+function buildLoadedStateFromObjText(objText: string, sourceName: string): LoadedState {
+  const parsed = parseObj(objText);
   const mesh = new Mesh();
   mesh.buildMesh(parsed.vertices, [], parsed.faces);
 
   const issues = mesh.validate();
   if (issues.length > 0) {
     const details = issues.map((issue) => issue.message).join("\n");
-    throw new Error(`Mesh validation failed for ${model}:\n${details}`);
+    throw new Error(`Mesh validation failed for ${sourceName}:\n${details}`);
   }
 
   return {
@@ -51,31 +60,61 @@ async function loadDemoMesh(model: DemoModel): Promise<LoadedState> {
   };
 }
 
+async function loadDemoMesh(model: PresetDemoModel): Promise<PresetLoadResult> {
+  const response = await fetch(`/models/${model}`);
+  if (!response.ok) {
+    throw new Error(`Failed to load ${model}`);
+  }
+
+  const objText = await response.text();
+
+  return {
+    objText,
+    loaded: buildLoadedStateFromObjText(objText, model)
+  };
+}
+
 export default function App(): JSX.Element {
   const [demo, setDemo] = useState<DemoModel>("planar_1.obj");
+  const [presetObjText, setPresetObjText] = useState("");
+  const [customObjText, setCustomObjText] = useState(CUSTOM_OBJ_TEMPLATE);
   const [loaded, setLoaded] = useState<LoadedState | null>(null);
   const [points, setPoints] = useState<QueryPoint[]>([]);
   const [rows, setRows] = useState<QueryRow[]>([]);
   const [showSlabs, setShowSlabs] = useState(false);
+  const [isLoadingPreset, setIsLoadingPreset] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (demo === "custom") {
+      return;
+    }
+
     let cancelled = false;
+    setIsLoadingPreset(true);
     setLoaded(null);
+    setPresetObjText("");
     setPoints([]);
     setRows([]);
     setShowSlabs(false);
     setError(null);
 
     void loadDemoMesh(demo)
-      .then((state) => {
+      .then((result) => {
         if (!cancelled) {
-          setLoaded(state);
+          setPresetObjText(result.objText);
+          setLoaded(result.loaded);
         }
       })
       .catch((err: unknown) => {
         if (!cancelled) {
+          setLoaded(null);
           setError(err instanceof Error ? err.message : String(err));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setIsLoadingPreset(false);
         }
       });
 
@@ -83,6 +122,30 @@ export default function App(): JSX.Element {
       cancelled = true;
     };
   }, [demo]);
+
+  useEffect(() => {
+    if (demo !== "custom") {
+      return;
+    }
+
+    setIsLoadingPreset(false);
+    setPoints([]);
+    setRows([]);
+    setShowSlabs(false);
+    setError(null);
+
+    if (customObjText.trim().length === 0) {
+      setLoaded(null);
+      return;
+    }
+
+    try {
+      setLoaded(buildLoadedStateFromObjText(customObjText, "custom"));
+    } catch (err: unknown) {
+      setLoaded(null);
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }, [customObjText, demo]);
 
   const queryPoints: QueryPointRender[] = useMemo(
     () => points.map((point) => ({ x: point.x, y: point.y, label: point.name })),
@@ -137,13 +200,14 @@ export default function App(): JSX.Element {
     setShowSlabs(false);
   };
 
-  if (error) {
-    return <main className="app-shell error">{error}</main>;
-  }
-
-  if (!loaded) {
-    return <main className="app-shell">Loading {demo}...</main>;
-  }
+  const sourceObjText = demo === "custom" ? customObjText : presetObjText;
+  const isPresetSource = demo !== "custom";
+  const graphHint =
+    isLoadingPreset && isPresetSource
+      ? `Loading ${demo}...`
+      : isPresetSource
+        ? "Could not render this preset graph."
+        : "Enter valid OBJ data to render your custom graph.";
 
   return (
     <main className="app-shell">
@@ -152,18 +216,67 @@ export default function App(): JSX.Element {
         <p>Click to place points, then press Start to run planar point location.</p>
       </header>
 
-      <Controls
-        demo={demo}
-        canStart={points.length > 0}
-        canClear={points.length > 0 || rows.length > 0}
-        onDemoChange={setDemo}
-        onStart={onStart}
-        onClearPoints={onClearPoints}
-      />
+      <div className="app-layout">
+        <section className="left-column">
+          <Controls
+            demo={demo}
+            canStart={loaded !== null && points.length > 0}
+            canClear={points.length > 0 || rows.length > 0}
+            onDemoChange={(nextDemo) => {
+              setDemo(nextDemo);
+            }}
+            onStart={onStart}
+            onClearPoints={onClearPoints}
+          />
 
-      <GraphCanvas model={loaded.renderModel} queryPoints={queryPoints} slabs={slabLines} onCanvasClick={onCanvasClick} />
+          <Paper className="obj-input-panel" withBorder radius="md" p="md">
+            <Textarea
+              className="obj-textarea"
+              label="OBJ Source"
+              description={
+                isPresetSource
+                  ? "Preset source is readonly. Select custom to edit OBJ data."
+                  : "Enter valid OBJ content to render a custom graph."
+              }
+              value={sourceObjText}
+              readOnly={isPresetSource}
+              minRows={12}
+              maxRows={12}
+              autosize
+              onChange={(event) => {
+                if (!isPresetSource) {
+                  setCustomObjText(event.currentTarget.value);
+                }
+              }}
+            />
+          </Paper>
 
-      <ResultsTable rows={rows} />
+          {error ? (
+            <Paper className="error-panel" withBorder radius="md" p="md">
+              <Text c="red.8" size="sm">
+                {error}
+              </Text>
+            </Paper>
+          ) : null}
+
+          <ResultsTable rows={rows} />
+        </section>
+
+        <section className="right-column">
+          {loaded ? (
+            <GraphCanvas model={loaded.renderModel} queryPoints={queryPoints} slabs={slabLines} onCanvasClick={onCanvasClick} />
+          ) : (
+            <Paper className="graph-panel graph-placeholder" withBorder radius="md" p="md">
+              <Text fw={600} size="sm">
+                Graph Canvas
+              </Text>
+              <Text c="dimmed" size="xs">
+                {graphHint}
+              </Text>
+            </Paper>
+          )}
+        </section>
+      </div>
     </main>
   );
 }

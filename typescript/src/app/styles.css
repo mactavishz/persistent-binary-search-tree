@@ -16,11 +16,30 @@ body {
 }
 
 .app-shell {
-  width: 720px;
+  width: min(1240px, 100%);
   margin: 0 auto;
   padding: 20px;
   display: grid;
   gap: 16px;
+}
+
+.app-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+  align-items: start;
+}
+
+.left-column,
+.right-column {
+  display: grid;
+  gap: 12px;
+  align-content: start;
+}
+
+.right-column {
+  width: fit-content;
+  max-width: 100%;
 }
 
 header h1 {
@@ -41,8 +60,25 @@ header p {
   border-radius: 12px;
 }
 
-.graph-canvas {
+.obj-input-panel,
+.error-panel,
+.graph-panel,
+.results-panel {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.obj-textarea {
   width: 100%;
+}
+
+.obj-textarea textarea {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 0.85rem;
+}
+
+.graph-canvas {
+  width: 720px;
+  max-width: 100%;
   display: block;
   aspect-ratio: 1 / 1;
   border-radius: 10px;
@@ -52,11 +88,15 @@ header p {
 }
 
 .graph-panel {
-  background: rgba(255, 255, 255, 0.95);
+  width: 720px;
+  max-width: 100%;
+}
+
+.graph-placeholder {
+  min-height: 168px;
 }
 
 .results-panel {
-  background: rgba(255, 255, 255, 0.95);
   border: 1px solid #d1d5db;
   border-radius: 12px;
   padding: 12px;
@@ -90,6 +130,24 @@ header p {
   color: #991b1b;
   background: #fee2e2;
   border-radius: 12px;
+}
+
+@media (max-width: 1080px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .right-column {
+    width: 100%;
+  }
+
+  .graph-panel {
+    width: 100%;
+  }
+
+  .graph-canvas {
+    width: 100%;
+  }
 }
 
 @media (max-width: 720px) {

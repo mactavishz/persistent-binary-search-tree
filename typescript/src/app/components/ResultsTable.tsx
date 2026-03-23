@@ -30,8 +30,8 @@ export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
       <Table.Td>
         <LabelText value={row.name} />
       </Table.Td>
-      <Table.Td>{row.x.toFixed(3)}</Table.Td>
-      <Table.Td>{row.y.toFixed(3)}</Table.Td>
+      {/* <Table.Td>{row.x.toFixed(3)}</Table.Td>
+      <Table.Td>{row.y.toFixed(3)}</Table.Td> */}
       <Table.Td>
         <LabelText value={row.slab} />
       </Table.Td>
@@ -43,17 +43,14 @@ export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
 
   return (
     <Paper className="results-panel" withBorder radius="md" p="md">
-      <Title order={3} mb="sm">
-        Point Location Results
-      </Title>
-
-      <Table.ScrollContainer minWidth={580}>
-        <Table withTableBorder withColumnBorders striped="odd" highlightOnHover={rows.length > 0}>
+      <Text fw={500} mb="sm">Results</Text>
+      <Table.ScrollContainer minWidth={200} maxHeight={200}>
+        <Table withTableBorder striped="odd" highlightOnHover={rows.length > 0}>
           <Table.Thead>
             <Table.Tr>
               <Table.Th>Name</Table.Th>
-              <Table.Th>X</Table.Th>
-              <Table.Th>Y</Table.Th>
+              {/* <Table.Th>X</Table.Th>
+              <Table.Th>Y</Table.Th> */}
               <Table.Th>Slab</Table.Th>
               <Table.Th>Face</Table.Th>
             </Table.Tr>
