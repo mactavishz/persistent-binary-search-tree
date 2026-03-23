@@ -1,4 +1,5 @@
 import type { JSX } from "react";
+import { splitLabelParts } from "./label-parts.js";
 
 interface Row {
   readonly name: string;
@@ -10,6 +11,16 @@ interface Row {
 
 interface ResultsTableProps {
   readonly rows: Row[];
+}
+
+function LabelText({ value }: { readonly value: string }): JSX.Element {
+  const { letters, number } = splitLabelParts(value);
+  return (
+    <>
+      {letters}
+      {number !== null ? <span className="label-number">{number}</span> : null}
+    </>
+  );
 }
 
 export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
@@ -34,11 +45,17 @@ export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
           ) : (
             rows.map((row) => (
               <tr key={row.name}>
-                <td>{row.name}</td>
+                <td>
+                  <LabelText value={row.name} />
+                </td>
                 <td>{row.x.toFixed(3)}</td>
                 <td>{row.y.toFixed(3)}</td>
-                <td>{row.slab}</td>
-                <td>{row.face}</td>
+                <td>
+                  <LabelText value={row.slab} />
+                </td>
+                <td>
+                  <LabelText value={row.face} />
+                </td>
               </tr>
             ))
           )}

@@ -78,4 +78,19 @@ describe("GraphCanvas", () => {
     expect(markers).toHaveLength(0);
     expect(Array.from(edges).every((line) => line.getAttribute("marker-end") === null)).toBe(true);
   });
+
+  it("renders label numbers in separate tspans", () => {
+    const { container } = renderCanvas();
+    const vertexLabel = container.querySelector(".vertex-labels text");
+    const faceLabel = container.querySelector(".face-labels text");
+
+    expect(vertexLabel?.textContent).toBe("v0");
+    expect(faceLabel?.textContent).toBe("f0");
+
+    const vertexNumber = vertexLabel?.querySelector("tspan.label-number");
+    const faceNumber = faceLabel?.querySelector("tspan.label-number");
+
+    expect(vertexNumber?.textContent).toBe("0");
+    expect(faceNumber?.textContent).toBe("0");
+  });
 });

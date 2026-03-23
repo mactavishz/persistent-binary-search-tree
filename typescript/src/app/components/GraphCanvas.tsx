@@ -2,6 +2,7 @@ import * as d3 from "d3";
 import { useEffect, useMemo, useRef } from "react";
 import type { JSX } from "react";
 import type { GraphRenderModel } from "../../planar/render-model.js";
+import { splitLabelParts } from "./label-parts.js";
 
 export interface QueryPointRender {
   readonly x: number;
@@ -113,7 +114,16 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
       .attr("fill", "#ffffff")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .text((vertex) => vertex.label);
+      .each(function renderVertexLabel(vertex) {
+        const { letters, number } = splitLabelParts(vertex.label);
+        const text = d3.select(this as SVGTextElement).text(letters);
+        if (number !== null) {
+          text.append("tspan")
+            .attr("class", "label-number")
+            .attr("dy", "3px")
+            .text(number);
+        }
+      });
 
     root
       .append("g")
@@ -125,12 +135,21 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
       .append("text")
       .attr("x", (face) => scales.x(face.centroid.x))
       .attr("y", (face) => scales.y(face.centroid.y))
-      .attr("font-size", 19)
+      .attr("font-size", 18)
       .attr("font-style", "italic")
       .attr("fill", "#18ab88")
       .attr("text-anchor", "middle")
       .attr("dominant-baseline", "middle")
-      .text((face) => face.label);
+      .each(function renderFaceLabel(face) {
+        const { letters, number } = splitLabelParts(face.label.toLowerCase());
+        const text = d3.select(this as SVGTextElement).text(letters);
+        if (number !== null) {
+          text.append("tspan")
+            .attr("class", "label-number")
+            .attr("dy", "3px")
+            .text(number);
+        }
+      });
 
     root
       .append("g")
@@ -151,10 +170,19 @@ export function GraphCanvas({ model, queryPoints, onCanvasClick }: GraphCanvasPr
         g.append("text")
           .attr("x", scales.x(point.x) + 8)
           .attr("y", scales.y(point.y) - 8)
-          .attr("font-size", 12)
+          .attr("font-size", 14)
           .attr("font-weight", 600)
           .attr("fill", "#111827")
-          .text(point.label);
+          .each(function renderPointLabel() {
+            const { letters, number } = splitLabelParts(point.label);
+            const text = d3.select(this as SVGTextElement).text(letters);
+            if (number !== null) {
+              text.append("tspan")
+                .attr("class", "label-number")
+                .attr("dy", "3px")
+                .text(number);
+            }
+          });
       });
 
     svg.on("click", (event) => {
