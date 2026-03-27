@@ -1,6 +1,7 @@
 import { BinarySearchTree } from "../bst/binary-search-tree.js";
 import { HalfEdge, Mesh } from "../mesh/mesh.js";
 import { PartialPersistentBinarySearchTree } from "../persistent/partial-persistent-bst.js";
+import type { SlabBuildTraceStep } from "./trace-types.js";
 
 export interface SegmentKey {
   readonly y: number;
@@ -96,7 +97,28 @@ export interface SlabIndex {
   readonly segmentTree: PartialPersistentBinarySearchTree<ActiveSegment, SegmentKey>;
 }
 
+function insertBalancedSlabs(tree: BinarySearchTree<SlabRecord, number>, slabs: readonly SlabRecord[]): void {
+  const insertRange = (start: number, end: number): void => {
+    if (start >= end) {
+      return;
+    }
+    const mid = Math.floor((start + end) / 2);
+    tree.insert(slabs[mid]!);
+    insertRange(start, mid);
+    insertRange(mid + 1, end);
+  };
+
+  insertRange(0, slabs.length);
+}
+
 export function buildSlabIndex(mesh: Mesh): SlabIndex {
+  return buildSlabIndexWithTrace(mesh).index;
+}
+
+export function buildSlabIndexWithTrace(mesh: Mesh): {
+  readonly index: SlabIndex;
+  readonly steps: SlabBuildTraceStep[];
+} {
   const bbox = mesh.boundingBox();
   if (bbox === null) {
     throw new Error("Cannot build slabs for an empty mesh");
@@ -118,7 +140,9 @@ export function buildSlabIndex(mesh: Mesh): SlabIndex {
   });
 
   const slabs: SlabRecord[] = [];
+  const steps: SlabBuildTraceStep[] = [];
   let previousKeys: SegmentKey[] = [];
+  let previousEdgeIds = new Set<number>();
   const graphEdges = mesh.uniqueUndirectedEdges();
 
   for (let i = 0; i < boundaries.length - 1; i += 1) {
@@ -162,11 +186,28 @@ export function buildSlabIndex(mesh: Mesh): SlabIndex {
     };
 
     slabs.push(slab);
-    slabTree.insert(slab);
     previousKeys = snapshotSegments.map((segment) => segment.key);
+
+    const activeEdgeIds = new Set(snapshotSegments.map((segment) => segment.edgeId));
+    const enteredEdgeIds = Array.from(activeEdgeIds).filter((edgeId) => !previousEdgeIds.has(edgeId));
+    const leftEdgeIds = Array.from(previousEdgeIds).filter((edgeId) => !activeEdgeIds.has(edgeId));
+    steps.push({
+      kind: "slab-built",
+      slab,
+      enteredEdgeIds,
+      leftEdgeIds,
+      activeEdgeIds: Array.from(activeEdgeIds),
+      snapshot
+    });
+    previousEdgeIds = activeEdgeIds;
   }
 
-  return { slabs, slabTree, segmentTree };
+  insertBalancedSlabs(slabTree, slabs);
+
+  return {
+    index: { slabs, slabTree, segmentTree },
+    steps
+  };
 }
 
 export { compareSegmentKeys, yAtX };

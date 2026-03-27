@@ -21,6 +21,11 @@ interface GraphCanvasProps {
   readonly model: GraphRenderModel;
   readonly queryPoints: QueryPointRender[];
   readonly slabs?: readonly SlabRender[];
+  readonly edgeHighlights?: readonly { edgeId: number; kind: "active" | "added" | "removed" | "search" }[];
+  readonly highlightedEdgeIds?: readonly number[];
+  readonly highlightedFaceId?: number | null;
+  readonly activePoint?: QueryPointRender | null;
+  readonly activeSlabName?: string | null;
   readonly onCanvasClick: (x: number, y: number) => void;
 }
 
@@ -29,6 +34,7 @@ const HEIGHT = 720;
 const VERTEX_RADIUS = 14;
 const GRAPH_STROKE = "#444";
 const SLAB_STROKE = "#f97316";
+const SLAB_FILL = "#fb923c";
 const SLAB_DASH_ARRAY = "4 4";
 const PLOT_PADDING = {
   left: 60,
@@ -39,8 +45,23 @@ const PLOT_PADDING = {
 const MIN_DOMAIN_SPAN = 1e-6;
 const SLAB_BOTTOM_EXTENSION = VERTEX_RADIUS + 6;
 const SLAB_LABEL_OFFSET_Y = 12;
+const EDGE_LABEL_OFFSET = 12;
 
-export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: GraphCanvasProps): JSX.Element {
+function clampSlabBoundary(value: number, fallback: number): number {
+  return Number.isFinite(value) ? value : fallback;
+}
+
+export function GraphCanvas({
+  model,
+  queryPoints,
+  slabs = [],
+  edgeHighlights = [],
+  highlightedEdgeIds = [],
+  highlightedFaceId = null,
+  activePoint = null,
+  activeSlabName = null,
+  onCanvasClick
+}: GraphCanvasProps): JSX.Element {
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const scales = useMemo(() => {
@@ -75,6 +96,28 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
     svg.selectAll("*").remove();
 
     const root = svg.append("g");
+    const edgeHighlightMap = new Map(edgeHighlights.map((highlight) => [highlight.edgeId, highlight.kind]));
+
+    function edgeStrokeColor(edgeId: number): string {
+      const kind = edgeHighlightMap.get(edgeId);
+      if (kind === "added") {
+        return "#2563eb";
+      }
+      if (kind === "removed") {
+        return "#dc2626";
+      }
+      if (kind === "search") {
+        return "#1d4ed8";
+      }
+      if (kind === "active") {
+        return "#0f766e";
+      }
+      return GRAPH_STROKE;
+    }
+
+    function edgeStrokeWidth(edgeId: number): number {
+      return edgeHighlightMap.has(edgeId) || highlightedEdgeIds.includes(edgeId) ? 4 : 2;
+    }
 
     root
       .append("g")
@@ -92,6 +135,7 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
           .curve(d3.curveLinearClosed)(face.vertices) ?? ""
       )
       .attr("fill", "#ffffff")
+      .attr("class", (face) => (face.id === highlightedFaceId ? "face-active" : ""))
       .attr("stroke", "none");
 
     const slabMarkers = slabs
@@ -100,8 +144,36 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
         name: slab.name,
         x: scales.x(slab.end)
       }));
+    const slabOverlays = slabs
+      .filter((slab) => slab.name === activeSlabName)
+      .map((slab) => {
+        const start = clampSlabBoundary(slab.start, model.bounds.minX);
+        const end = clampSlabBoundary(slab.end, model.bounds.maxX);
+        return {
+          name: slab.name,
+          x1: scales.x(Math.max(model.bounds.minX, start)),
+          x2: scales.x(Math.min(model.bounds.maxX, end))
+        };
+      })
+      .filter((slab) => slab.x2 > slab.x1);
     const slabBaseY = scales.y(model.bounds.minY);
     const slabBottomY = Math.min(HEIGHT - 24, slabBaseY + SLAB_BOTTOM_EXTENSION);
+
+    root
+      .append("g")
+      .attr("class", "slab-overlays")
+      .attr("pointer-events", "none")
+      .selectAll("rect")
+      .data(slabOverlays)
+      .enter()
+      .append("rect")
+      .attr("class", "slab-highlight")
+      .attr("x", (slab) => slab.x1)
+      .attr("y", scales.y(model.bounds.maxY))
+      .attr("width", (slab) => slab.x2 - slab.x1)
+      .attr("height", scales.y(model.bounds.minY) - scales.y(model.bounds.maxY))
+      .attr("fill", SLAB_FILL)
+      .attr("opacity", 0.12);
 
     root
       .append("g")
@@ -116,6 +188,7 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
       .attr("x2", (slab) => slab.x)
       .attr("y2", slabBottomY)
       .attr("stroke", SLAB_STROKE)
+      .attr("class", (slab) => (slab.name === activeSlabName ? "slab-active" : ""))
       .attr("stroke-width", 2)
       .attr("stroke-dasharray", SLAB_DASH_ARRAY)
       .attr("opacity", 0.9);
@@ -170,8 +243,54 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
       .attr("y1", (edge) => scales.y(model.vertices[edge.source]!.y))
       .attr("x2", (edge) => scales.x(model.vertices[edge.target]!.x))
       .attr("y2", (edge) => scales.y(model.vertices[edge.target]!.y))
-      .attr("stroke", GRAPH_STROKE)
-      .attr("stroke-width", 2);
+      .attr("stroke", (edge) => edgeStrokeColor(edge.id))
+      .attr("stroke-width", (edge) => edgeStrokeWidth(edge.id))
+      .attr("class", (edge) => (edgeHighlightMap.has(edge.id) || highlightedEdgeIds.includes(edge.id) ? "edge-active" : ""));
+
+    root
+      .append("g")
+      .attr("class", "edge-labels")
+      .attr("pointer-events", "none")
+      .selectAll("text")
+      .data(uniqueEdges)
+      .enter()
+      .append("text")
+      .attr("x", (edge) => {
+        const x1 = scales.x(model.vertices[edge.source]!.x);
+        const x2 = scales.x(model.vertices[edge.target]!.x);
+        const y1 = scales.y(model.vertices[edge.source]!.y);
+        const y2 = scales.y(model.vertices[edge.target]!.y);
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const length = Math.hypot(dx, dy) || 1;
+        return (x1 + x2) / 2 + (-dy / length) * EDGE_LABEL_OFFSET;
+      })
+      .attr("y", (edge) => {
+        const x1 = scales.x(model.vertices[edge.source]!.x);
+        const x2 = scales.x(model.vertices[edge.target]!.x);
+        const y1 = scales.y(model.vertices[edge.source]!.y);
+        const y2 = scales.y(model.vertices[edge.target]!.y);
+        const dx = x2 - x1;
+        const dy = y2 - y1;
+        const length = Math.hypot(dx, dy) || 1;
+        return (y1 + y2) / 2 + (dx / length) * EDGE_LABEL_OFFSET;
+      })
+      .attr("font-size", 14)
+      .attr("font-style", "italic")
+      .attr("font-weight", 600)
+      .attr("fill", (edge) => (edgeHighlightMap.has(edge.id) || highlightedEdgeIds.includes(edge.id) ? edgeStrokeColor(edge.id) : "#374151"))
+      .attr("text-anchor", "middle")
+      .attr("dominant-baseline", "middle")
+      .each(function renderEdgeLabel(edge) {
+        const { letters, number } = splitLabelParts(`e${edge.id}`);
+        const text = d3.select(this as SVGTextElement).text(letters);
+        if (number !== null) {
+          text.append("tspan")
+            .attr("class", "label-number")
+            .attr("dy", "3px")
+            .text(number);
+        }
+      });
 
     root
       .append("g")
@@ -272,13 +391,29 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
           });
       });
 
+    if (activePoint) {
+      const active = root.append("g").attr("class", "active-query-point").attr("pointer-events", "none");
+      active
+        .append("circle")
+        .attr("cx", scales.x(activePoint.x))
+        .attr("cy", scales.y(activePoint.y))
+        .attr("r", 8)
+        .attr("fill", "none")
+        .attr("stroke", "#2563eb")
+        .attr("stroke-width", 2)
+        .attr("opacity", 0)
+        .transition()
+        .duration(220)
+        .attr("opacity", 1);
+    }
+
     svg.on("click", (event) => {
       const [sx, sy] = d3.pointer(event);
       const x = scales.x.invert(sx);
       const y = scales.y.invert(sy);
       onCanvasClick(x, y);
     });
-  }, [model, onCanvasClick, queryPoints, scales, slabs]);
+  }, [activePoint, activeSlabName, edgeHighlights, highlightedEdgeIds, highlightedFaceId, model, onCanvasClick, queryPoints, scales, slabs]);
 
   return (
     <Paper className="graph-panel" withBorder radius="md" p="md">
@@ -287,7 +422,7 @@ export function GraphCanvas({ model, queryPoints, slabs = [], onCanvasClick }: G
           Graph Canvas
         </Text>
         <Text c="dimmed" size="xs">
-          Click inside the graph to place query points. A point belongs to the slab marked by the first dotted line to its right.
+          Click inside the graph to place query points. Dotted lines mark slab boundaries, and the active slab is shown as a thin tinted region.
         </Text>
         <svg className="graph-canvas" ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} />
       </Stack>

@@ -3,11 +3,20 @@ import { useEffect, useMemo, useState } from "react";
 import type { JSX } from "react";
 import { Mesh } from "../mesh/mesh.js";
 import { parseObj } from "../mesh/obj-loader.js";
-import { buildPointLocationIndex, locatePoint } from "../planar/point-location.js";
+import {
+  buildPointLocationIndexWithTrace,
+  type PointLocationIndex,
+  traceLocatePoint
+} from "../planar/point-location.js";
 import { meshToRenderModel } from "../planar/render-model.js";
 import { Controls, type DemoModel } from "./components/Controls.js";
 import { GraphCanvas, type QueryPointRender, type SlabRender } from "./components/GraphCanvas.js";
+import { PlaybackControls } from "./components/PlaybackControls.js";
+import { PersistentTreeView } from "./components/PersistentTreeView.js";
 import { ResultsTable } from "./components/ResultsTable.js";
+import { StepDetails } from "./components/StepDetails.js";
+import { usePlayback } from "./hooks/usePlayback.js";
+import { buildVisualizerRun, type VisualizerFrame, type VisualizerRun } from "./visualizer/trace-to-frames.js";
 
 type PresetDemoModel = Exclude<DemoModel, "custom">;
 
@@ -17,15 +26,11 @@ interface QueryPoint {
   readonly y: number;
 }
 
-interface QueryRow extends QueryPoint {
-  readonly slab: string;
-  readonly face: string;
-}
-
 interface LoadedState {
   readonly mesh: Mesh;
   readonly renderModel: ReturnType<typeof meshToRenderModel>;
-  readonly locator: ReturnType<typeof buildPointLocationIndex>;
+  readonly locator: PointLocationIndex;
+  readonly buildTrace: ReturnType<typeof buildPointLocationIndexWithTrace>["trace"];
 }
 
 interface PresetLoadResult {
@@ -53,10 +58,13 @@ function buildLoadedStateFromObjText(objText: string, sourceName: string): Loade
     throw new Error(`Mesh validation failed for ${sourceName}:\n${details}`);
   }
 
+  const buildResult = buildPointLocationIndexWithTrace(mesh);
+
   return {
     mesh,
     renderModel: meshToRenderModel(mesh),
-    locator: buildPointLocationIndex(mesh)
+    locator: buildResult.index,
+    buildTrace: buildResult.trace
   };
 }
 
@@ -80,10 +88,17 @@ export default function App(): JSX.Element {
   const [customObjText, setCustomObjText] = useState(CUSTOM_OBJ_TEMPLATE);
   const [loaded, setLoaded] = useState<LoadedState | null>(null);
   const [points, setPoints] = useState<QueryPoint[]>([]);
-  const [rows, setRows] = useState<QueryRow[]>([]);
-  const [showSlabs, setShowSlabs] = useState(false);
+  const [run, setRun] = useState<VisualizerRun | null>(null);
   const [isLoadingPreset, setIsLoadingPreset] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const playback = usePlayback(run?.frames.length ?? 0);
+
+  const currentFrame: VisualizerFrame | null = useMemo(() => {
+    if (!run || run.frames.length === 0) {
+      return null;
+    }
+    return run.frames[Math.min(playback.currentStep, run.frames.length - 1)] ?? null;
+  }, [playback.currentStep, run]);
 
   useEffect(() => {
     if (demo === "custom") {
@@ -95,8 +110,7 @@ export default function App(): JSX.Element {
     setLoaded(null);
     setPresetObjText("");
     setPoints([]);
-    setRows([]);
-    setShowSlabs(false);
+    setRun(null);
     setError(null);
 
     void loadDemoMesh(demo)
@@ -130,8 +144,7 @@ export default function App(): JSX.Element {
 
     setIsLoadingPreset(false);
     setPoints([]);
-    setRows([]);
-    setShowSlabs(false);
+    setRun(null);
     setError(null);
 
     if (customObjText.trim().length === 0) {
@@ -153,18 +166,30 @@ export default function App(): JSX.Element {
   );
 
   const slabLines: SlabRender[] = useMemo(() => {
-    if (!showSlabs || loaded === null) {
+    if (!currentFrame || loaded === null) {
       return [];
     }
 
-    return loaded.locator.slabIndex.slabs.map((slab) => ({
+    return currentFrame.slabLines.map((slab) => ({
       name: slab.name,
       start: slab.start,
       end: slab.end
     }));
-  }, [loaded, showSlabs]);
+  }, [currentFrame, loaded]);
+
+  const activePointRender: QueryPointRender | null = useMemo(() => {
+    if (!currentFrame?.activePointCoords || !currentFrame.activePointName) {
+      return null;
+    }
+    return {
+      x: currentFrame.activePointCoords.x,
+      y: currentFrame.activePointCoords.y,
+      label: currentFrame.activePointName
+    };
+  }, [currentFrame]);
 
   const onCanvasClick = (x: number, y: number): void => {
+    setRun(null);
     setPoints((prev) => [
       ...prev,
       {
@@ -180,25 +205,34 @@ export default function App(): JSX.Element {
       return;
     }
 
-    const nextRows = points.map((point) => {
-      const result = locatePoint(loaded.mesh, loaded.locator, point);
+    const queryTraces = points.map((point) => {
+      const trace = traceLocatePoint(loaded.mesh, loaded.locator, point);
       return {
-        name: point.name,
-        x: point.x,
-        y: point.y,
-        slab: result.slabName,
-        face: result.faceName
+        point,
+        trace,
+        result: trace.result
       };
     });
-    setRows(nextRows);
-    setShowSlabs(true);
+
+    setRun(
+      buildVisualizerRun({
+        model: loaded.renderModel,
+        build: {
+          index: loaded.locator,
+          trace: loaded.buildTrace
+        },
+        points,
+        queryTraces
+      })
+    );
   };
 
   const onClearPoints = (): void => {
     setPoints([]);
-    setRows([]);
-    setShowSlabs(false);
+    setRun(null);
   };
+
+  const resultsRows = currentFrame?.rows ?? points.map((point) => ({ name: point.name, slab: "-", face: "-", status: "pending" as const }));
 
   const sourceObjText = demo === "custom" ? customObjText : presetObjText;
   const isPresetSource = demo !== "custom";
@@ -221,13 +255,46 @@ export default function App(): JSX.Element {
           <Controls
             demo={demo}
             canStart={loaded !== null && points.length > 0}
-            canClear={points.length > 0 || rows.length > 0}
+            canClear={points.length > 0 || run !== null}
             onDemoChange={(nextDemo) => {
               setDemo(nextDemo);
             }}
             onStart={onStart}
             onClearPoints={onClearPoints}
           />
+
+          {run !== null ? (
+            <PlaybackControls
+              currentStep={playback.currentStep}
+              totalSteps={run.frames.length}
+              isPlaying={playback.isPlaying}
+              speed={playback.speed}
+              activePhase={currentFrame?.stepperPhase ?? "Build slabs"}
+              onPlayPause={() => {
+                playback.setIsPlaying(!playback.isPlaying);
+              }}
+              onNext={playback.next}
+              onPrevious={playback.previous}
+              onRestart={playback.restart}
+              onStepChange={playback.setCurrentStep}
+              onSpeedChange={playback.setSpeed}
+            />
+          ) : null}
+
+          {currentFrame !== null ? <StepDetails frame={currentFrame} /> : null}
+
+          {currentFrame?.treeSnapshotNodes ? (
+            <PersistentTreeView
+              version={currentFrame.treeSnapshotVersion ?? 0}
+              nodes={currentFrame.treeSnapshotNodes}
+              summary={currentFrame.treeSnapshotSummary ?? {
+                slabName: currentFrame.activeSlabName ?? "-",
+                activeEdgeLabels: [],
+                enteredEdgeLabels: [],
+                removedEdgeLabels: []
+              }}
+            />
+          ) : null}
 
           <Paper className="obj-input-panel" withBorder radius="md" p="md">
             <Textarea
@@ -259,12 +326,22 @@ export default function App(): JSX.Element {
             </Paper>
           ) : null}
 
-          <ResultsTable rows={rows} />
+          <ResultsTable rows={resultsRows} />
         </section>
 
         <section className="right-column">
           {loaded ? (
-            <GraphCanvas model={loaded.renderModel} queryPoints={queryPoints} slabs={slabLines} onCanvasClick={onCanvasClick} />
+            <GraphCanvas
+              model={loaded.renderModel}
+              queryPoints={queryPoints}
+              slabs={slabLines}
+              edgeHighlights={currentFrame?.edgeHighlights ?? []}
+              highlightedEdgeIds={currentFrame?.highlightedEdgeIds ?? []}
+              highlightedFaceId={currentFrame?.highlightedFaceId ?? null}
+              activePoint={activePointRender}
+              activeSlabName={currentFrame?.activeSlabName ?? null}
+              onCanvasClick={onCanvasClick}
+            />
           ) : (
             <Paper className="graph-panel graph-placeholder" withBorder radius="md" p="md">
               <Text fw={600} size="sm">

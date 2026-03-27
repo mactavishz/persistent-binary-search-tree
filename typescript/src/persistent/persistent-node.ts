@@ -1,23 +1,31 @@
 import type { ModificationRecord, PersistentField } from "./modification-record.js";
 
 export class PersistentNode<T, K> {
+  private static nextNodeId = 0;
+
   left: PersistentNode<T, K> | null = null;
   right: PersistentNode<T, K> | null = null;
   parent: PersistentNode<T, K> | null = null;
   mods: [ModificationRecord<T, K> | null, ModificationRecord<T, K> | null] = [null, null];
   copy: PersistentNode<T, K> | null = null;
+  readonly nodeId: number;
+  copiedFromNodeId: number | null = null;
 
   constructor(
     public value: T,
     public key: K,
     public version: number
-  ) {}
+  ) {
+    this.nodeId = PersistentNode.nextNodeId;
+    PersistentNode.nextNodeId += 1;
+  }
 
   cloneForVersion(version: number): PersistentNode<T, K> {
     const cloned = new PersistentNode(this.value, this.key, version);
     cloned.left = this.left;
     cloned.right = this.right;
     cloned.parent = this.parent;
+    cloned.copiedFromNodeId = this.nodeId;
     return cloned;
   }
 

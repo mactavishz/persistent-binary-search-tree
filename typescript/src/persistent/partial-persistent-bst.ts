@@ -140,10 +140,12 @@ export class PartialPersistentBinarySearchTree<T, K = T> {
       const left = current.get("left", normalized);
       const right = current.get("right", normalized);
       nodes.push({
+        nodeId: current.nodeId,
+        copiedFromNodeId: current.copiedFromNodeId,
         key: current.key,
         value: current.value,
-        left: left ? left.key : null,
-        right: right ? right.key : null
+        left: left ? { nodeId: left.nodeId, key: left.key } : null,
+        right: right ? { nodeId: right.nodeId, key: right.key } : null
       });
 
       if (left) {

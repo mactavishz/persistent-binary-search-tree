@@ -60,7 +60,12 @@ const MODEL: GraphRenderModel = {
   }
 };
 
-function renderCanvas(options?: { readonly slabs?: readonly SlabRender[] }) {
+function renderCanvas(options?: {
+  readonly slabs?: readonly SlabRender[];
+  readonly activeSlabName?: string | null;
+  readonly highlightedEdgeIds?: readonly number[];
+  readonly edgeHighlights?: readonly { edgeId: number; kind: "active" | "added" | "removed" | "search" }[];
+}) {
   const container = document.createElement("div");
   document.body.appendChild(container);
   const root = createRoot(container);
@@ -73,6 +78,9 @@ function renderCanvas(options?: { readonly slabs?: readonly SlabRender[] }) {
           model={MODEL}
           queryPoints={[]}
           slabs={options?.slabs ?? []}
+          activeSlabName={options?.activeSlabName ?? null}
+          edgeHighlights={options?.edgeHighlights ?? []}
+          highlightedEdgeIds={options?.highlightedEdgeIds ?? []}
           onCanvasClick={onCanvasClick}
         />
       </MantineProvider>
@@ -122,6 +130,14 @@ describe("GraphCanvas", () => {
     expect(faceNumber?.textContent).toBe("0");
   });
 
+  it("renders edge labels using stable edge ids", () => {
+    const { container } = renderCanvas({ highlightedEdgeIds: [1] });
+    const edgeLabels = Array.from(container.querySelectorAll(".edge-labels text"));
+
+    expect(edgeLabels).toHaveLength(3);
+    expect(edgeLabels.map((label) => label.textContent)).toEqual(["e0", "e1", "e2"]);
+  });
+
   it("renders slab lines behind vertices with labels below lines", () => {
     const { container } = renderCanvas({
       slabs: [
@@ -147,5 +163,37 @@ describe("GraphCanvas", () => {
     const labelYs = Array.from(slabLabels).map((node) => Number(node.getAttribute("y")));
     expect(new Set(labelYs).size).toBe(1);
     expect(labelYs.every((labelY) => lineBottomYs.every((lineY) => labelY > lineY))).toBe(true);
+  });
+
+  it("renders a translucent overlay for the active slab", () => {
+    const { container } = renderCanvas({
+      slabs: [
+        { name: "s0", start: -Infinity, end: 0.75 },
+        { name: "s1", start: 0.75, end: 1.6 },
+        { name: "s2", start: 1.6, end: Infinity }
+      ],
+      activeSlabName: "s1"
+    });
+
+    const overlay = container.querySelector(".slab-overlays .slab-highlight");
+
+    expect(overlay).not.toBeNull();
+    expect(Number(overlay?.getAttribute("width"))).toBeGreaterThan(0);
+  });
+
+  it("renders removed edges with a red highlight", () => {
+    const { container } = renderCanvas({
+      edgeHighlights: [{ edgeId: 1, kind: "removed" }]
+    });
+
+    const removedEdge = Array.from(container.querySelectorAll(".edges line")).find(
+      (line) => line.getAttribute("stroke") === "#dc2626"
+    );
+    const removedLabel = Array.from(container.querySelectorAll(".edge-labels text")).find(
+      (label) => label.getAttribute("fill") === "#dc2626"
+    );
+
+    expect(removedEdge).toBeDefined();
+    expect(removedLabel).toBeDefined();
   });
 });

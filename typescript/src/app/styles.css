@@ -63,7 +63,10 @@ header p {
 .obj-input-panel,
 .error-panel,
 .graph-panel,
-.results-panel {
+.results-panel,
+.playback-panel,
+.step-details-panel,
+.tree-panel {
   background: rgba(255, 255, 255, 0.95);
 }
 
@@ -118,6 +121,53 @@ header p {
   border-bottom: 1px solid #e5e7eb;
   padding: 8px;
   text-align: left;
+}
+
+.result-row-active td {
+  background: #eff6ff;
+}
+
+.playback-stepper {
+  overflow-x: auto;
+}
+
+.tree-node-list {
+  max-height: 160px;
+  overflow: auto;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 8px;
+  background: #f8fafc;
+}
+
+.tree-node-item {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  line-height: 1.5;
+}
+
+.face-active {
+  fill: #dbeafe;
+  transition: fill 220ms ease;
+}
+
+.edge-active {
+  transition: stroke 220ms ease, stroke-width 220ms ease;
+}
+
+.slab-active {
+  stroke: #ea580c;
+}
+
+.slab-highlight {
+  transition: opacity 220ms ease;
+}
+
+.step-detail-added {
+  color: #2563eb;
+}
+
+.step-detail-removed {
+  color: #dc2626;
 }
 
 .label-number {

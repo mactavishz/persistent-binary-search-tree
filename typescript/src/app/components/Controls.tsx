@@ -45,7 +45,7 @@ export function Controls({
         />
 
       </Group>
-      <Group mt="md" align="flex" gap="sm" wrap="wrap">
+      <Group mt="md" align="flex-end" gap="sm" wrap="wrap">
         <Button type="button" onClick={onStart} disabled={!canStart}>
           Start
         </Button>

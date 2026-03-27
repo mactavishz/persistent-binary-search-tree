@@ -1,6 +1,7 @@
 import { Face, Mesh } from "../mesh/mesh.js";
-import { buildSlabIndex, yAtX } from "./slabs.js";
+import { buildSlabIndexWithTrace, yAtX } from "./slabs.js";
 import type { SlabIndex, SlabRecord } from "./slabs.js";
+import type { BandBinarySearchTraceStep, QueryTraceEvent } from "./trace-types.js";
 
 const EPSILON = 1e-7;
 
@@ -20,6 +21,20 @@ export interface PointLocationResult {
 export interface PointLocationIndex {
   readonly slabIndex: SlabIndex;
   readonly faceBandsBySlab: Map<string, Array<number | null>>;
+}
+
+export interface PointLocationBuildTrace {
+  readonly slabSteps: ReadonlyArray<import("./trace-types.js").SlabBuildTraceStep>;
+}
+
+export interface PointLocationBuildResult {
+  readonly index: PointLocationIndex;
+  readonly trace: PointLocationBuildTrace;
+}
+
+export interface PointLocationTraceResult {
+  readonly result: PointLocationResult;
+  readonly events: QueryTraceEvent[];
 }
 
 function pointInPolygon(x: number, y: number, polygon: ReadonlyArray<{ x: number; y: number }>): boolean {
@@ -114,7 +129,12 @@ function probeBandFaces(mesh: Mesh, slab: SlabRecord, yMin: number, yMax: number
 }
 
 export function buildPointLocationIndex(mesh: Mesh): PointLocationIndex {
-  const slabIndex = buildSlabIndex(mesh);
+  return buildPointLocationIndexWithTrace(mesh).index;
+}
+
+export function buildPointLocationIndexWithTrace(mesh: Mesh): PointLocationBuildResult {
+  const slabResult = buildSlabIndexWithTrace(mesh);
+  const slabIndex = slabResult.index;
   const bbox = mesh.boundingBox();
   if (bbox === null) {
     throw new Error("Cannot build point-location index for empty mesh");
@@ -128,57 +148,176 @@ export function buildPointLocationIndex(mesh: Mesh): PointLocationIndex {
     faceBandsBySlab.set(slab.name, bands);
   }
 
-  return { slabIndex, faceBandsBySlab };
+  return {
+    index: { slabIndex, faceBandsBySlab },
+    trace: {
+      slabSteps: slabResult.steps
+    }
+  };
 }
 
-function locateBand(slab: SlabRecord, x: number, y: number): number {
-  for (let i = 0; i < slab.segments.length; i += 1) {
-    const segmentY = yAtX(slab.segments[i]!, x);
+function locateBandBinarySearch(
+  slab: SlabRecord,
+  x: number,
+  y: number,
+  onStep?: (step: BandBinarySearchTraceStep) => void
+): number {
+  let low = 0;
+  let high = slab.segments.length;
+
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2);
+    const segment = slab.segments[mid]!;
+    const segmentY = yAtX(segment, x);
     if (y <= segmentY + EPSILON) {
-      return i;
+      onStep?.({
+        kind: "band-search-step",
+        slabName: slab.name,
+        low,
+        high,
+        mid,
+        segmentEdgeId: segment.edgeId,
+        queryX: x,
+        queryY: y,
+        segmentY,
+        direction: "lower"
+      });
+      high = mid;
+    } else {
+      onStep?.({
+        kind: "band-search-step",
+        slabName: slab.name,
+        low,
+        high,
+        mid,
+        segmentEdgeId: segment.edgeId,
+        queryX: x,
+        queryY: y,
+        segmentY,
+        direction: "higher"
+      });
+      low = mid + 1;
     }
   }
-  return slab.segments.length;
+
+  return low;
 }
 
 export function locatePoint(mesh: Mesh, index: PointLocationIndex, point: QueryPoint): PointLocationResult {
-  if (isBoundaryPoint(mesh, point.x, point.y)) {
-    return {
+  return traceLocatePoint(mesh, index, point).result;
+}
+
+export function traceLocatePoint(mesh: Mesh, index: PointLocationIndex, point: QueryPoint): PointLocationTraceResult {
+  const pointName = point.name ?? "query";
+  const events: QueryTraceEvent[] = [];
+  const boundary = isBoundaryPoint(mesh, point.x, point.y);
+  events.push({
+    kind: "boundary-check",
+    pointName,
+    isBoundary: boundary
+  });
+
+  if (boundary) {
+    const result: PointLocationResult = {
       slabName: "boundary",
       faceId: null,
       faceName: "boundary",
       classification: "boundary"
     };
+    events.push({
+      kind: "face-resolved",
+      pointName,
+      slabName: "boundary",
+      faceId: null,
+      faceName: "boundary",
+      classification: "boundary"
+    });
+    return { result, events };
   }
 
-  const slabNode = index.slabIndex.slabTree.searchLE(point.x);
+  const slabNode = index.slabIndex.slabTree.searchLETrace(point.x, (step) => {
+    const slab = step.node.value;
+    events.push({
+      kind: "slab-search-step",
+      queryX: point.x,
+      comparedSlabName: slab.name,
+      comparedStart: slab.start,
+      direction: step.direction,
+      candidateSlabName: step.candidate?.value.name ?? null,
+      candidateSlabStart: step.candidate?.value.start ?? null
+    });
+  });
   const slab = slabNode?.value ?? index.slabIndex.slabs[0];
   if (!slab) {
-    return {
+    const result: PointLocationResult = {
       slabName: "none",
       faceId: mesh.outerFace?.id ?? null,
       faceName: "outerFace",
       classification: "outer"
     };
+    events.push({
+      kind: "face-resolved",
+      pointName,
+      slabName: "none",
+      faceId: result.faceId,
+      faceName: result.faceName,
+      classification: "outer"
+    });
+    return { result, events };
   }
 
-  const band = locateBand(slab, point.x, point.y);
+  events.push({
+    kind: "slab-selected",
+    pointName,
+    slabName: slab.name,
+    slabVersion: slab.version
+  });
+
+  const band = locateBandBinarySearch(slab, point.x, point.y, (step) => {
+    events.push(step);
+  });
+  events.push({
+    kind: "band-selected",
+    pointName,
+    slabName: slab.name,
+    bandIndex: band,
+    segmentEdgeId: band < slab.segments.length ? slab.segments[band]!.edgeId : null
+  });
+
   const faceId = index.faceBandsBySlab.get(slab.name)?.[band] ?? mesh.outerFace?.id ?? null;
   const face = faceId !== null ? mesh.faces[faceId] ?? null : null;
 
   if (face === null || face.isOuter) {
-    return {
+    const result: PointLocationResult = {
       slabName: slab.name,
       faceId,
       faceName: "outerFace",
       classification: "outer"
     };
+    events.push({
+      kind: "face-resolved",
+      pointName,
+      slabName: slab.name,
+      faceId,
+      faceName: "outerFace",
+      classification: "outer"
+    });
+    return { result, events };
   }
 
-  return {
+  const result: PointLocationResult = {
     slabName: slab.name,
     faceId: face.id,
     faceName: `F${face.id}`,
     classification: "inside"
   };
+  events.push({
+    kind: "face-resolved",
+    pointName,
+    slabName: slab.name,
+    faceId: face.id,
+    faceName: `F${face.id}`,
+    classification: "inside"
+  });
+  return { result, events };
 }

@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { Mesh } from "../src/mesh/mesh.js";
 import { parseObj } from "../src/mesh/obj-loader.js";
-import { buildPointLocationIndex, locatePoint } from "../src/planar/point-location.js";
+import {
+  buildPointLocationIndex,
+  buildPointLocationIndexWithTrace,
+  locatePoint,
+  traceLocatePoint
+} from "../src/planar/point-location.js";
 
 const PLANAR_1 = `
 v 1.0 4.0 0.0
@@ -74,5 +79,71 @@ describe("point location", () => {
     expect(outer.faceName).toBe("outerFace");
     expect(boundary.classification).toBe("boundary");
     expect(boundary.faceName).toBe("boundary");
+  });
+
+  it("keeps traced queries consistent with locatePoint", () => {
+    const { mesh, index } = setup(PLANAR_1);
+    const points = [
+      { x: 2, y: 1.5, name: "p0" },
+      { x: -1, y: 3, name: "p1" },
+      { x: 1.5, y: 2, name: "p2" }
+    ];
+
+    for (const point of points) {
+      const direct = locatePoint(mesh, index, point);
+      const traced = traceLocatePoint(mesh, index, point);
+      expect(traced.result).toEqual(direct);
+      expect(traced.events.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("records slab build steps in index trace", () => {
+    const parsed = parseObj(PLANAR_2);
+    const mesh = new Mesh();
+    mesh.buildMesh(parsed.vertices, [], parsed.faces);
+    const build = buildPointLocationIndexWithTrace(mesh);
+
+    expect(build.trace.slabSteps.length).toBeGreaterThan(0);
+    expect(build.trace.slabSteps[0]?.kind).toBe("slab-built");
+  });
+
+  it("records comparison data for slab lookup and edge search", () => {
+    const { mesh, index } = setup(PLANAR_1);
+    const point = { x: 2, y: 1.5, name: "p0" };
+
+    const traced = traceLocatePoint(mesh, index, point);
+    const slabSteps = traced.events.filter((event) => event.kind === "slab-search-step");
+    const edgeSteps = traced.events.filter((event) => event.kind === "band-search-step");
+
+    expect(slabSteps.length).toBeGreaterThan(0);
+    expect(edgeSteps.length).toBeGreaterThan(0);
+
+    for (const event of slabSteps) {
+      expect(event.queryX).toBe(point.x);
+      if (event.candidateSlabName === null) {
+        expect(event.candidateSlabStart).toBeNull();
+      } else {
+        expect(typeof event.candidateSlabStart).toBe("number");
+      }
+    }
+
+    for (const event of edgeSteps) {
+      expect(event.queryX).toBe(point.x);
+      expect(event.queryY).toBe(point.y);
+      expect(Number.isFinite(event.segmentY)).toBe(true);
+      expect(event.segmentEdgeId).toBeGreaterThanOrEqual(0);
+    }
+  });
+
+  it("starts slab lookup from the middle slab instead of scanning from the left", () => {
+    const parsed = parseObj(PLANAR_1);
+    const mesh = new Mesh();
+    mesh.buildMesh(parsed.vertices, [], parsed.faces);
+    const build = buildPointLocationIndexWithTrace(mesh);
+    const traced = traceLocatePoint(mesh, build.index, { x: 2.4, y: 1.4, name: "p0" });
+    const slabSteps = traced.events.filter((event) => event.kind === "slab-search-step");
+    const middleSlab = build.trace.slabSteps[Math.floor(build.trace.slabSteps.length / 2)]?.slab.name;
+
+    expect(slabSteps[0]?.comparedSlabName).toBe(middleSlab);
   });
 });

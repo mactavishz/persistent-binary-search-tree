@@ -44,6 +44,43 @@ export class BinarySearchTree<T, K = T> {
     return candidate ? this.toView(candidate) : null;
   }
 
+  searchLETrace(
+    key: K,
+    onStep: (step: {
+      readonly node: NodeView<T, K>;
+      readonly cmp: number;
+      readonly direction: "left" | "right";
+      readonly candidate: NodeView<T, K> | null;
+    }) => void
+  ): NodeView<T, K> | null {
+    let current = this.root;
+    let candidate: TreeNode<T, K> | null = null;
+
+    while (current) {
+      const cmp = this.compare(key, current.key);
+      if (cmp < 0) {
+        onStep({
+          node: this.toView(current),
+          cmp,
+          direction: "left",
+          candidate: candidate ? this.toView(candidate) : null
+        });
+        current = current.left;
+      } else {
+        candidate = current;
+        onStep({
+          node: this.toView(current),
+          cmp,
+          direction: "right",
+          candidate: this.toView(candidate)
+        });
+        current = current.right;
+      }
+    }
+
+    return candidate ? this.toView(candidate) : null;
+  }
+
   searchGT(key: K): NodeView<T, K> | null {
     let current = this.root;
     let candidate: TreeNode<T, K> | null = null;

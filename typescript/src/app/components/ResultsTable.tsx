@@ -4,10 +4,9 @@ import { splitLabelParts } from "./label-parts.js";
 
 interface Row {
   readonly name: string;
-  readonly x: number;
-  readonly y: number;
   readonly slab: string;
   readonly face: string;
+  readonly status?: "pending" | "active" | "done";
 }
 
 interface ResultsTableProps {
@@ -26,12 +25,10 @@ function LabelText({ value }: { readonly value: string }): JSX.Element {
 
 export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
   const tableRows = rows.map((row) => (
-    <Table.Tr key={row.name}>
+    <Table.Tr key={row.name} className={row.status === "active" ? "result-row-active" : ""}>
       <Table.Td>
         <LabelText value={row.name} />
       </Table.Td>
-      {/* <Table.Td>{row.x.toFixed(3)}</Table.Td>
-      <Table.Td>{row.y.toFixed(3)}</Table.Td> */}
       <Table.Td>
         <LabelText value={row.slab} />
       </Table.Td>
@@ -58,7 +55,7 @@ export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
           <Table.Tbody>
             {rows.length === 0 ? (
               <Table.Tr>
-                <Table.Td colSpan={5}>
+                <Table.Td colSpan={3}>
                   <Text c="dimmed" ta="center">
                     No results yet. Click to place points, then press Start.
                   </Text>
