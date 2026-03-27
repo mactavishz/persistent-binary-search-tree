@@ -16,7 +16,7 @@ import { PersistentTreeView } from "./components/PersistentTreeView.js";
 import { ResultsTable } from "./components/ResultsTable.js";
 import { StepDetails } from "./components/StepDetails.js";
 import { usePlayback } from "./hooks/usePlayback.js";
-import { buildVisualizerRun, type VisualizerFrame, type VisualizerRun } from "./visualizer/trace-to-frames.js";
+import { buildVisualizerRun, type VisualizerFrame, type VisualizerRun } from "./utils/visualizer.js";
 
 type PresetDemoModel = Exclude<DemoModel, "custom">;
 

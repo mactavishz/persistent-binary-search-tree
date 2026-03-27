@@ -5,7 +5,6 @@ import type {
   PointLocationTraceResult,
   QueryPoint
 } from "../../planar/point-location.js";
-import type { QueryTraceEvent } from "../../planar/trace-types.js";
 
 export interface FrameResultRow {
   readonly name: string;

@@ -1,6 +1,6 @@
 import { Paper, Text } from "@mantine/core";
 import type { JSX } from "react";
-import type { VisualizerFrame } from "../visualizer/trace-to-frames.js";
+import type { VisualizerFrame } from "../utils/visualizer.js";
 
 interface StepDetailsProps {
   readonly frame: VisualizerFrame;
