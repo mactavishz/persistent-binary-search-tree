@@ -100,6 +100,73 @@ export default function App(): JSX.Element {
     return run.frames[Math.min(playback.currentStep, run.frames.length - 1)] ?? null;
   }, [playback.currentStep, run]);
 
+  const currentTreeFrame: VisualizerFrame | null = useMemo(() => {
+    if (!run || run.frames.length === 0) {
+      return null;
+    }
+
+    for (let i = Math.min(playback.currentStep, run.frames.length - 1); i >= 0; i -= 1) {
+      const frame = run.frames[i];
+      if (frame?.treeSnapshotNodes !== null && frame?.treeSnapshotNodes !== undefined) {
+        return frame;
+      }
+    }
+
+    return null;
+  }, [playback.currentStep, run]);
+
+  const treeSnapshots = useMemo(() => {
+    if (!run) {
+      return [];
+    }
+
+    const byVersion = new Map<number, {
+      version: number;
+      slabName: string;
+      nodes: Array<{
+        nodeId: number;
+        copiedFromNodeId: number | null;
+        leftNodeId: number | null;
+        rightNodeId: number | null;
+        label: string;
+      }>;
+      summary: {
+        activeEdgeLabels: string[];
+        enteredEdgeLabels: string[];
+        removedEdgeLabels: string[];
+      };
+    }>();
+
+    for (const frame of run.frames) {
+      if (frame.treeSnapshotVersion === null || frame.treeSnapshotNodes === null) {
+        continue;
+      }
+
+      const summary = frame.treeSnapshotSummary ?? {
+        slabName: frame.activeSlabName ?? `s${frame.treeSnapshotVersion}`,
+        activeEdgeLabels: [],
+        enteredEdgeLabels: [],
+        removedEdgeLabels: []
+      };
+
+      byVersion.set(frame.treeSnapshotVersion, {
+        version: frame.treeSnapshotVersion,
+        slabName: summary.slabName,
+        nodes: frame.treeSnapshotNodes,
+        summary: {
+          activeEdgeLabels: summary.activeEdgeLabels,
+          enteredEdgeLabels: summary.enteredEdgeLabels,
+          removedEdgeLabels: summary.removedEdgeLabels
+        }
+      });
+    }
+
+    return Array.from(byVersion.values()).sort((a, b) => a.version - b.version);
+  }, [run]);
+
+  const latestTreeVersion = treeSnapshots.length > 0 ? treeSnapshots[treeSnapshots.length - 1]!.version : null;
+  const activeTreeVersion = currentTreeFrame?.treeSnapshotVersion ?? latestTreeVersion;
+
   useEffect(() => {
     if (demo === "custom") {
       return;
@@ -251,7 +318,7 @@ export default function App(): JSX.Element {
       </header>
 
       <div className="app-layout">
-        <section className="left-column">
+        <section className="controls-row">
           <Controls
             demo={demo}
             canStart={loaded !== null && points.length > 0}
@@ -262,7 +329,9 @@ export default function App(): JSX.Element {
             onStart={onStart}
             onClearPoints={onClearPoints}
           />
+        </section>
 
+        <section className="sidebar-column">
           {run !== null ? (
             <PlaybackControls
               currentStep={playback.currentStep}
@@ -283,40 +352,29 @@ export default function App(): JSX.Element {
 
           {currentFrame !== null ? <StepDetails frame={currentFrame} /> : null}
 
-          {currentFrame?.treeSnapshotNodes ? (
-            <PersistentTreeView
-              version={currentFrame.treeSnapshotVersion ?? 0}
-              nodes={currentFrame.treeSnapshotNodes}
-              summary={currentFrame.treeSnapshotSummary ?? {
-                slabName: currentFrame.activeSlabName ?? "-",
-                activeEdgeLabels: [],
-                enteredEdgeLabels: [],
-                removedEdgeLabels: []
-              }}
-            />
-          ) : null}
-
-          <Paper className="obj-input-panel" withBorder radius="md" p="md">
-            <Textarea
-              className="obj-textarea"
-              label="OBJ Source"
-              description={
-                isPresetSource
-                  ? "Preset source is readonly. Select custom to edit OBJ data."
-                  : "Enter valid OBJ content to render a custom graph."
-              }
-              value={sourceObjText}
-              readOnly={isPresetSource}
-              minRows={12}
-              maxRows={12}
-              autosize
-              onChange={(event) => {
-                if (!isPresetSource) {
-                  setCustomObjText(event.currentTarget.value);
+          {run === null ? (
+            <Paper className="obj-input-panel" withBorder radius="md" p="md">
+              <Textarea
+                className="obj-textarea"
+                label="OBJ Source"
+                description={
+                  isPresetSource
+                    ? "Preset source is readonly. Select custom to edit OBJ data."
+                    : "Enter valid OBJ content to render a custom graph."
                 }
-              }}
-            />
-          </Paper>
+                value={sourceObjText}
+                readOnly={isPresetSource}
+                minRows={12}
+                maxRows={12}
+                autosize
+                onChange={(event) => {
+                  if (!isPresetSource) {
+                    setCustomObjText(event.currentTarget.value);
+                  }
+                }}
+              />
+            </Paper>
+          ) : null}
 
           {error ? (
             <Paper className="error-panel" withBorder radius="md" p="md">
@@ -329,7 +387,7 @@ export default function App(): JSX.Element {
           <ResultsTable rows={resultsRows} />
         </section>
 
-        <section className="right-column">
+        <section className="graph-column">
           {loaded ? (
             <GraphCanvas
               model={loaded.renderModel}
@@ -352,6 +410,14 @@ export default function App(): JSX.Element {
               </Text>
             </Paper>
           )}
+        </section>
+
+        <section className="tree-column">
+          <PersistentTreeView
+            versions={treeSnapshots}
+            activeVersion={activeTreeVersion}
+            latestVersion={latestTreeVersion}
+          />
         </section>
       </div>
     </main>

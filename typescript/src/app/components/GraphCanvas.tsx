@@ -3,7 +3,7 @@ import { Paper, Stack, Text } from "@mantine/core";
 import { useEffect, useMemo, useRef } from "react";
 import type { JSX } from "react";
 import type { GraphRenderModel } from "../../planar/render-model.js";
-import { splitLabelParts } from "./label-parts.js";
+import { splitLabelParts } from "./labelParts.js";
 
 export interface QueryPointRender {
   readonly x: number;

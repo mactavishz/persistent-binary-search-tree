@@ -1,6 +1,6 @@
 import { Paper, Table, Text, Title } from "@mantine/core";
 import type { JSX } from "react";
-import { splitLabelParts } from "./label-parts.js";
+import { splitLabelParts } from "./labelParts.js";
 
 interface Row {
   readonly name: string;
@@ -56,7 +56,7 @@ export function ResultsTable({ rows }: ResultsTableProps): JSX.Element {
             {rows.length === 0 ? (
               <Table.Tr>
                 <Table.Td colSpan={3}>
-                  <Text c="dimmed" ta="center">
+                  <Text c="dimmed" ta="center" size="xs">
                     No results yet. Click to place points, then press Start.
                   </Text>
                 </Table.Td>

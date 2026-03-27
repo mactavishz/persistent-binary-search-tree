@@ -16,7 +16,7 @@ body {
 }
 
 .app-shell {
-  width: min(1240px, 100%);
+  width: min(1880px, 100%);
   margin: 0 auto;
   padding: 20px;
   display: grid;
@@ -25,21 +25,42 @@ body {
 
 .app-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-columns: minmax(300px, 0.6fr) minmax(620px, 1.5fr) minmax(460px, 1.2fr);
+  grid-template-areas:
+    "controls controls controls"
+    "sidebar graph tree";
+  grid-template-rows: max-content max-content;
   gap: 16px;
   align-items: start;
 }
 
-.left-column,
-.right-column {
+.controls-row {
+  grid-area: controls;
+}
+
+.sidebar-column,
+.graph-column,
+.tree-column {
   display: grid;
   gap: 12px;
   align-content: start;
 }
 
-.right-column {
-  width: fit-content;
+.graph-column,
+.tree-column {
   max-width: 100%;
+}
+
+.sidebar-column {
+  grid-area: sidebar;
+}
+
+.graph-column {
+  grid-area: graph;
+}
+
+.tree-column {
+  grid-area: tree;
 }
 
 header h1 {
@@ -80,8 +101,8 @@ header p {
 }
 
 .graph-canvas {
-  width: 720px;
-  max-width: 100%;
+  width: 100%;
+  max-width: none;
   display: block;
   aspect-ratio: 1 / 1;
   border-radius: 10px;
@@ -91,8 +112,190 @@ header p {
 }
 
 .graph-panel {
-  width: 720px;
+  width: 100%;
   max-width: 100%;
+}
+
+.tree-panel {
+  width: 100%;
+}
+
+.tree-panel-large {
+  height: 100%;
+}
+
+.tree-version-dot {
+  width: 0.62rem;
+  height: 0.62rem;
+  border-radius: 999px;
+  display: inline-block;
+}
+
+.tree-version-badge {
+  font-weight: 700;
+}
+
+.tree-canvas {
+  width: 100%;
+  max-width: none;
+  display: block;
+  aspect-ratio: 1280 / 880;
+  border-radius: 10px;
+  border: 1px solid #cbd5e1;
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.tree-unified-canvas {
+  min-height: 620px;
+}
+
+.tree-edge {
+  fill: none;
+  transition: stroke 220ms ease, stroke-width 220ms ease, opacity 220ms ease;
+}
+
+.tree-edge-base {
+  stroke: #cbd5e1;
+  stroke-width: 1.75;
+}
+
+.tree-version-path {
+  stroke-width: 1.8;
+  opacity: 0.34;
+  animation: tree-fade-in 220ms ease;
+}
+
+.tree-version-path-active {
+  stroke-width: 5.2;
+  opacity: 0.98;
+}
+
+.tree-version-path-latest {
+  stroke-width: 4.2;
+  opacity: 0.84;
+}
+
+.tree-copy-edge {
+  stroke: #fb923c;
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+  opacity: 0.62;
+}
+
+.tree-version-root-label {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.tree-empty-state {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #f8fafc;
+  padding: 12px;
+}
+
+.tree-node {
+  transition: transform 220ms ease, opacity 220ms ease;
+}
+
+.tree-node-circle {
+  fill: #ffffff;
+  stroke: #334155;
+  stroke-width: 2.4;
+  transition: fill 220ms ease, stroke 220ms ease, stroke-width 220ms ease;
+}
+
+.tree-node-label,
+.tree-node-copy {
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  pointer-events: none;
+}
+
+.tree-node-label {
+  fill: #0f172a;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.tree-node-copy {
+  fill: #475569;
+  font-size: 12px;
+}
+
+.tree-node-copy-ring {
+  fill: none;
+  stroke: #2563eb;
+  stroke-width: 2;
+  stroke-dasharray: 3 3;
+}
+
+.tree-node-active-version .tree-node-circle {
+  stroke: #2563eb;
+  stroke-width: 4;
+}
+
+.tree-node-latest-version .tree-node-circle {
+  fill: #ecfdf5;
+  stroke: #0f766e;
+  stroke-width: 3.4;
+}
+
+.tree-node-added .tree-node-circle {
+  fill: #dbeafe;
+  stroke: #2563eb;
+  animation: tree-update-pulse 220ms ease;
+}
+
+.tree-node-removed .tree-node-circle {
+  fill: #fee2e2;
+  stroke: #dc2626;
+  animation: tree-update-pulse 220ms ease;
+}
+
+.tree-node-removed .tree-node-label {
+  fill: #7f1d1d;
+}
+
+.tree-node-copied .tree-node-label {
+  fill: #1d4ed8;
+  font-weight: 700;
+}
+
+.tree-node-reused .tree-node-circle {
+  stroke-dasharray: 7 4;
+}
+
+.tree-node-reuse {
+  fill: #6d28d9;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.tree-node-membership-pill {
+  fill: #eef2ff;
+  stroke: #6366f1;
+  stroke-width: 1.6;
+}
+
+.tree-node-membership-text {
+  fill: #3730a3;
+  font-family: "IBM Plex Mono", "Fira Code", monospace;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.tree-node-dummy .tree-node-circle {
+  fill: #fffbeb;
+  stroke: #d97706;
+  stroke-width: 4.2;
+}
+
+.tree-node-dummy .tree-node-label {
+  fill: #92400e;
+  font-size: 24px;
+  letter-spacing: 0.02em;
 }
 
 .graph-placeholder {
@@ -131,18 +334,26 @@ header p {
   overflow-x: auto;
 }
 
-.tree-node-list {
-  max-height: 160px;
-  overflow: auto;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
-  padding: 8px;
-  background: #f8fafc;
+@keyframes tree-fade-in {
+  0% {
+    opacity: 0;
+  }
+
+  100% {
+    opacity: 1;
+  }
 }
 
-.tree-node-item {
-  font-family: "IBM Plex Mono", "Fira Code", monospace;
-  line-height: 1.5;
+@keyframes tree-update-pulse {
+  0% {
+    transform: scale(0.94);
+    opacity: 0.84;
+  }
+
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .face-active {
@@ -184,11 +395,12 @@ header p {
 
 @media (max-width: 1080px) {
   .app-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .right-column {
-    width: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "controls"
+      "sidebar"
+      "graph"
+      "tree";
   }
 
   .graph-panel {
@@ -197,6 +409,16 @@ header p {
 
   .graph-canvas {
     width: 100%;
+  }
+}
+
+@media (max-width: 1400px) {
+  .app-layout {
+    grid-template-columns: minmax(280px, 0.9fr) minmax(520px, 1.1fr);
+    grid-template-areas:
+      "controls controls"
+      "sidebar graph"
+      "tree tree";
   }
 }
 
