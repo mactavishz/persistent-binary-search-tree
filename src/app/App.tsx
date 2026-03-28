@@ -344,8 +344,8 @@ export default function App(): JSX.Element {
   return (
     <main className="app-shell">
       <header>
-        <h1>Planar Point Location Demo</h1>
-        <p>Click to place points, then press Start to run planar point location.</p>
+        <h1>Persistent Binary Search Tree & Planar Point Location Demo</h1>
+        <p>Click to place points, then press <strong>Start</strong> to run planar point location algorithm.</p>
       </header>
 
       <div className="app-layout">
