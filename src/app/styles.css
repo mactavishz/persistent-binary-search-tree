@@ -25,7 +25,7 @@ body {
 
 .app-layout {
   display: grid;
-  grid-template-columns: minmax(300px, 0.6fr) minmax(620px, 1.5fr) minmax(460px, 1.2fr);
+  grid-template-columns: minmax(300px, 0.7fr) minmax(620px, 1.5fr) minmax(460px, 1.2fr);
   grid-template-areas:
     "controls controls controls"
     "sidebar graph tree";

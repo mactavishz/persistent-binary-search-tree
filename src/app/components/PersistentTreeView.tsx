@@ -26,6 +26,7 @@ interface PersistentTreeVersionView {
 
 interface PersistentTreeViewProps {
   readonly versions: PersistentTreeVersionView[];
+  readonly visibleVersions?: number[];
   readonly activeVersion: number | null;
   readonly latestVersion: number | null;
 }
@@ -524,24 +525,88 @@ function edgeOffset(
   return (index - (carryingVersions.length - 1) / 2) * 2.8;
 }
 
-export function PersistentTreeView({ versions, activeVersion, latestVersion }: PersistentTreeViewProps): JSX.Element {
+export function PersistentTreeView({ versions, visibleVersions, activeVersion, latestVersion }: PersistentTreeViewProps): JSX.Element {
   const sortedVersions = useMemo(() => [...versions].sort((a, b) => a.version - b.version), [versions]);
   const unified = useMemo(() => buildUnifiedModel(sortedVersions), [sortedVersions]);
+  const visibleVersionSet = useMemo(() => {
+    if (visibleVersions === undefined) {
+      return new Set(sortedVersions.map((snapshot) => snapshot.version));
+    }
+    return new Set(visibleVersions);
+  }, [sortedVersions, visibleVersions]);
+
+  const visibleSnapshots = useMemo(
+    () => sortedVersions.filter((snapshot) => visibleVersionSet.has(snapshot.version)),
+    [sortedVersions, visibleVersionSet]
+  );
+
+  const visibleEdgeKeys = useMemo(() => {
+    const keys = new Set<string>();
+    for (const snapshot of visibleSnapshots) {
+      for (const key of unified.versionEdges.get(snapshot.version) ?? []) {
+        keys.add(key);
+      }
+    }
+    return keys;
+  }, [unified.versionEdges, visibleSnapshots]);
+
+  const visibleNodeVersionsById = useMemo(() => {
+    const membership = new Map<number, Set<number>>();
+    for (const snapshot of visibleSnapshots) {
+      const nodeIds = unified.versionNodes.get(snapshot.version);
+      if (!nodeIds) {
+        continue;
+      }
+
+      for (const nodeId of nodeIds) {
+        const versionsForNode = membership.get(nodeId);
+        if (versionsForNode) {
+          versionsForNode.add(snapshot.version);
+        } else {
+          membership.set(nodeId, new Set([snapshot.version]));
+        }
+      }
+    }
+    return membership;
+  }, [unified.versionNodes, visibleSnapshots]);
+
+  const visibleNodeIds = useMemo(() => new Set(visibleNodeVersionsById.keys()), [visibleNodeVersionsById]);
+
+  const visibleNodes = useMemo(
+    () => unified.nodes.filter((node) => visibleNodeIds.has(node.nodeId)),
+    [unified.nodes, visibleNodeIds]
+  );
+
+  const visibleEdges = useMemo(
+    () => unified.edges.filter((edge) => visibleEdgeKeys.has(edge.key)),
+    [unified.edges, visibleEdgeKeys]
+  );
+
+  const visibleCopyEdges = useMemo(
+    () =>
+      unified.copyEdges.filter(
+        (edge) =>
+          visibleNodeIds.has(edge.fromNodeId) &&
+          visibleNodeIds.has(edge.toNodeId) &&
+          Array.from(edge.versions).some((version) => visibleVersionSet.has(version))
+      ),
+    [unified.copyEdges, visibleNodeIds, visibleVersionSet]
+  );
 
   const activeSnapshot = useMemo(() => {
-    if (activeVersion !== null) {
-      const explicit = sortedVersions.find((snapshot) => snapshot.version === activeVersion);
+    if (activeVersion !== null && visibleVersionSet.has(activeVersion)) {
+      const explicit = visibleSnapshots.find((snapshot) => snapshot.version === activeVersion);
       if (explicit) {
         return explicit;
       }
     }
 
-    if (latestVersion !== null) {
-      return sortedVersions.find((snapshot) => snapshot.version === latestVersion) ?? null;
+    if (latestVersion !== null && visibleVersionSet.has(latestVersion)) {
+      return visibleSnapshots.find((snapshot) => snapshot.version === latestVersion) ?? null;
     }
 
-    return sortedVersions.length > 0 ? sortedVersions[sortedVersions.length - 1]! : null;
-  }, [activeVersion, latestVersion, sortedVersions]);
+    return visibleSnapshots.length > 0 ? visibleSnapshots[visibleSnapshots.length - 1]! : null;
+  }, [activeVersion, latestVersion, visibleSnapshots, visibleVersionSet]);
 
   const activeAddedLabels = useMemo(
     () => new Set(activeSnapshot?.summary.enteredEdgeLabels ?? []),
@@ -557,25 +622,25 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
     <Paper className="tree-panel tree-panel-large" withBorder radius="md" p="md">
       <Stack gap="xs">
         <Text fw={600} size="sm">
-          Persistent Tree (All Versions)
+          Persistent Tree (Build-Up by Version)
         </Text>
         <Text size="xs" c="dimmed">
-          One persistent tree graph is shown for all versions. Colored path overlays indicate each version, and active/latest versions are emphasized.
+          One persistent tree graph keeps a stable layout while playback progressively reveals versions and updates.
         </Text>
 
-        {sortedVersions.length === 0 ? (
+        {visibleSnapshots.length === 0 ? (
           <div className="tree-empty-state">
             <Text size="xs" c="dimmed">
-              Start an algorithm run to generate persistent tree versions.
+              Step through the build to reveal persistent tree versions.
             </Text>
           </div>
         ) : (
           <>
             <Group gap={8} wrap="wrap">
-              {sortedVersions.map((snapshot, index) => {
+              {visibleSnapshots.map((snapshot, index) => {
                 const isActive = activeVersion !== null && snapshot.version === activeVersion;
                 const isLatest = latestVersion !== null && snapshot.version === latestVersion;
-                const color = versionColor(index, sortedVersions.length, isActive, isLatest);
+                const color = versionColor(index, visibleSnapshots.length, isActive, isLatest);
                 const dotColor = isActive || isLatest ? "#ffffff" : color;
 
                 return (
@@ -607,7 +672,7 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
 
             <svg className="tree-canvas tree-unified-canvas" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}>
               <g className="tree-unified-base-edges" pointerEvents="none">
-                {unified.edges.map((edge) => {
+                {visibleEdges.map((edge) => {
                   const source = unified.nodeById.get(edge.fromNodeId);
                   const target = unified.nodeById.get(edge.toNodeId);
                   if (!source || !target) {
@@ -628,7 +693,7 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
               </g>
 
               <g className="tree-unified-version-overlays" pointerEvents="none">
-                {sortedVersions.map((snapshot, versionIndex) => {
+                {visibleSnapshots.map((snapshot, versionIndex) => {
                   const versionEdgeKeys = unified.versionEdges.get(snapshot.version);
                   if (!versionEdgeKeys) {
                     return null;
@@ -636,11 +701,12 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
 
                   const isActive = activeVersion !== null && snapshot.version === activeVersion;
                   const isLatest = latestVersion !== null && snapshot.version === latestVersion;
-                  const stroke = versionColor(versionIndex, sortedVersions.length, isActive, isLatest);
+                  const stroke = versionColor(versionIndex, visibleSnapshots.length, isActive, isLatest);
 
                   return Array.from(versionEdgeKeys)
                     .map((key) => unified.edgesByKey.get(key))
                     .filter(isDefined)
+                    .filter((edge) => visibleEdgeKeys.has(edge.key))
                     .map((edge) => {
                       const source = unified.nodeById.get(edge.fromNodeId);
                       const target = unified.nodeById.get(edge.toNodeId);
@@ -672,7 +738,7 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
               </g>
 
               <g className="tree-unified-copy-edges" pointerEvents="none">
-                {unified.copyEdges.map((edge) => {
+                {visibleCopyEdges.map((edge) => {
                   const source = unified.nodeById.get(edge.fromNodeId);
                   const target = unified.nodeById.get(edge.toNodeId);
                   if (!source || !target) {
@@ -693,20 +759,22 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
               </g>
 
               <g className="tree-unified-nodes" pointerEvents="none">
-                {unified.nodes.map((node) => {
+                {visibleNodes.map((node) => {
                   const classNames = ["tree-node"];
-                  const membership = node.nodeId === DUMMY_ROOT_NODE_ID ? null : formatVersionMembership(node.versions);
+                  const visibleVersionsForNode = visibleNodeVersionsById.get(node.nodeId) ?? new Set<number>();
+                  const membership =
+                    node.nodeId === DUMMY_ROOT_NODE_ID ? null : formatVersionMembership(visibleVersionsForNode);
                   const membershipWidth = membership ? Math.max(60, membership.length * 10 + 20) : 0;
                   if (node.nodeId === DUMMY_ROOT_NODE_ID) {
                     classNames.push("tree-node-dummy");
                   }
-                  if (node.nodeId !== DUMMY_ROOT_NODE_ID && node.versions.size > 1) {
+                  if (node.nodeId !== DUMMY_ROOT_NODE_ID && visibleVersionsForNode.size > 1) {
                     classNames.push("tree-node-reused");
                   }
-                  if (activeVersion !== null && node.versions.has(activeVersion)) {
+                  if (activeVersion !== null && visibleVersionsForNode.has(activeVersion)) {
                     classNames.push("tree-node-active-version");
                   }
-                  if (latestVersion !== null && node.versions.has(latestVersion)) {
+                  if (latestVersion !== null && visibleVersionsForNode.has(latestVersion)) {
                     classNames.push("tree-node-latest-version");
                   }
                   if (node.copiedFromNodeId !== null) {
@@ -731,9 +799,9 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
                       <text className="tree-node-label" y={7} textAnchor="middle">
                         {asTspanLabel(node.label)}
                       </text>
-                      {node.nodeId !== DUMMY_ROOT_NODE_ID && node.versions.size > 1 ? (
+                      {node.nodeId !== DUMMY_ROOT_NODE_ID && visibleVersionsForNode.size > 1 ? (
                         <text className="tree-node-reuse" x={NODE_RADIUS - 13} y={-NODE_RADIUS + 14} textAnchor="middle">
-                          x{node.versions.size}
+                          x{visibleVersionsForNode.size}
                         </text>
                       ) : null}
                       {membership ? (
@@ -753,7 +821,7 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
                 {(() => {
                   const rootLabelOffsetByNodeId = new Map<number, number>();
 
-                  return sortedVersions.map((snapshot, index) => {
+                  return visibleSnapshots.map((snapshot, index) => {
                     const rootNodeId = unified.rootByVersion.get(snapshot.version);
                     if (rootNodeId === null || rootNodeId === undefined) {
                       return null;
@@ -766,7 +834,7 @@ export function PersistentTreeView({ versions, activeVersion, latestVersion }: P
 
                     const isActive = activeVersion !== null && snapshot.version === activeVersion;
                     const isLatest = latestVersion !== null && snapshot.version === latestVersion;
-                    const color = versionColor(index, sortedVersions.length, isActive, isLatest);
+                    const color = versionColor(index, visibleSnapshots.length, isActive, isLatest);
                     const offsetIndex = rootLabelOffsetByNodeId.get(rootNodeId) ?? 0;
                     rootLabelOffsetByNodeId.set(rootNodeId, offsetIndex + 1);
 

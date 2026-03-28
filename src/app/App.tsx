@@ -164,8 +164,39 @@ export default function App(): JSX.Element {
     return Array.from(byVersion.values()).sort((a, b) => a.version - b.version);
   }, [run]);
 
+  const visibleTreeVersionSet = useMemo(() => {
+    if (!run || run.frames.length === 0) {
+      return new Set<number>();
+    }
+
+    const visible = new Set<number>();
+    const end = Math.min(playback.currentStep, run.frames.length - 1);
+
+    for (let i = 0; i <= end; i += 1) {
+      const frame = run.frames[i];
+      if (frame?.treeSnapshotVersion !== null && frame?.treeSnapshotVersion !== undefined) {
+        visible.add(frame.treeSnapshotVersion);
+      }
+    }
+
+    return visible;
+  }, [playback.currentStep, run]);
+
+  const visibleTreeVersions = useMemo(
+    () => treeSnapshots.map((snapshot) => snapshot.version).filter((version) => visibleTreeVersionSet.has(version)),
+    [treeSnapshots, visibleTreeVersionSet]
+  );
+
   const latestTreeVersion = treeSnapshots.length > 0 ? treeSnapshots[treeSnapshots.length - 1]!.version : null;
-  const activeTreeVersion = currentTreeFrame?.treeSnapshotVersion ?? latestTreeVersion;
+  const latestVisibleTreeVersion =
+    visibleTreeVersions.length > 0 ? visibleTreeVersions[visibleTreeVersions.length - 1]! : null;
+  const activeTreeVersion = useMemo(() => {
+    const preferred = currentTreeFrame?.treeSnapshotVersion ?? latestVisibleTreeVersion ?? latestTreeVersion;
+    if (preferred === null) {
+      return null;
+    }
+    return visibleTreeVersionSet.has(preferred) ? preferred : latestVisibleTreeVersion;
+  }, [currentTreeFrame?.treeSnapshotVersion, latestTreeVersion, latestVisibleTreeVersion, visibleTreeVersionSet]);
 
   useEffect(() => {
     if (demo === "custom") {
@@ -415,8 +446,9 @@ export default function App(): JSX.Element {
         <section className="tree-column">
           <PersistentTreeView
             versions={treeSnapshots}
+            visibleVersions={visibleTreeVersions}
             activeVersion={activeTreeVersion}
-            latestVersion={latestTreeVersion}
+            latestVersion={latestVisibleTreeVersion}
           />
         </section>
       </div>

@@ -45,6 +45,7 @@ interface TreeVersionFixture {
 
 interface RenderProps {
   readonly versions: TreeVersionFixture[];
+  readonly visibleVersions?: number[];
   readonly activeVersion: number | null;
   readonly latestVersion: number | null;
 }
@@ -60,6 +61,7 @@ function renderTree(props: RenderProps) {
         <MantineProvider env="test" forceColorScheme="light">
           <PersistentTreeView
             versions={nextProps.versions}
+            visibleVersions={nextProps.visibleVersions}
             activeVersion={nextProps.activeVersion}
             latestVersion={nextProps.latestVersion}
           />
@@ -91,7 +93,7 @@ describe("PersistentTreeView", () => {
     });
 
     expect(container.querySelector(".tree-empty-state")).not.toBeNull();
-    expect(container.textContent ?? "").toContain("Start an algorithm run to generate persistent tree versions.");
+    expect(container.textContent ?? "").toContain("Step through the build to reveal persistent tree versions.");
   });
 
   it("renders one unified tree with overlays for all versions", () => {
@@ -220,6 +222,75 @@ describe("PersistentTreeView", () => {
 
     expect(dummyRoot).not.toBeNull();
     expect(dummyRootLabels).toContain("root");
+  });
+
+  it("reveals versions progressively while preserving node placement", () => {
+    const versions: TreeVersionFixture[] = [
+      {
+        version: 1,
+        slabName: "s1",
+        summary: {
+          activeEdgeLabels: ["e0"],
+          enteredEdgeLabels: ["e0"],
+          removedEdgeLabels: []
+        },
+        nodes: [{ nodeId: 1, copiedFromNodeId: null, leftNodeId: null, rightNodeId: null, label: "e0" }]
+      },
+      {
+        version: 2,
+        slabName: "s2",
+        summary: {
+          activeEdgeLabels: ["e1"],
+          enteredEdgeLabels: ["e1"],
+          removedEdgeLabels: []
+        },
+        nodes: [
+          { nodeId: 1, copiedFromNodeId: null, leftNodeId: null, rightNodeId: null, label: "e0" },
+          { nodeId: 2, copiedFromNodeId: 1, leftNodeId: 1, rightNodeId: null, label: "e1" }
+        ]
+      }
+    ];
+
+    const { container, rerender } = renderTree({
+      versions,
+      visibleVersions: [1],
+      activeVersion: 1,
+      latestVersion: 1
+    });
+
+    const labelsBefore = Array.from(container.querySelectorAll("text.tree-node-label")).map((entry) => entry.textContent ?? "");
+    const membershipBefore = Array.from(container.querySelectorAll("text.tree-node-membership-text")).map((entry) => entry.textContent ?? "");
+    const e0NodeBefore = container.querySelector('g.tree-node[data-node-id="1"]');
+    const e0BeforeTransform = e0NodeBefore?.getAttribute("transform") ?? null;
+
+    expect(container.querySelectorAll(".tree-unified-canvas")).toHaveLength(1);
+    expect(container.textContent ?? "").toContain("v1");
+    expect(container.textContent ?? "").not.toContain("v2");
+    expect(container.querySelector('line.tree-version-path[data-version="2"]')).toBeNull();
+    expect(labelsBefore).toContain("e0");
+    expect(labelsBefore).not.toContain("e1");
+    expect(membershipBefore).toContain("v1");
+    expect(membershipBefore).not.toContain("v1,v2");
+
+    rerender({
+      versions,
+      visibleVersions: [1, 2],
+      activeVersion: 2,
+      latestVersion: 2
+    });
+
+    const labelsAfter = Array.from(container.querySelectorAll("text.tree-node-label")).map((entry) => entry.textContent ?? "");
+    const membershipAfter = Array.from(container.querySelectorAll("text.tree-node-membership-text")).map((entry) => entry.textContent ?? "");
+    const e0NodeAfter = container.querySelector('g.tree-node[data-node-id="1"]');
+    const e0AfterTransform = e0NodeAfter?.getAttribute("transform") ?? null;
+
+    expect(container.querySelectorAll(".tree-unified-canvas")).toHaveLength(1);
+    expect(container.textContent ?? "").toContain("v2");
+    expect(container.querySelector('line.tree-version-path[data-version="2"]')).not.toBeNull();
+    expect(labelsAfter).toContain("e0");
+    expect(labelsAfter).toContain("e1");
+    expect(membershipAfter).toContain("v1,v2");
+    expect(e0AfterTransform).toBe(e0BeforeTransform);
   });
 
   it("highlights active-version updates and copy pointers on the unified tree", () => {
