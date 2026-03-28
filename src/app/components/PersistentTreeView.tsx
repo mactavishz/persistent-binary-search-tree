@@ -57,18 +57,25 @@ interface UnifiedTreeModel {
   readonly versionEdges: Map<number, Set<string>>;
   readonly versionNodes: Map<number, Set<number>>;
   readonly rootByVersion: Map<number, number | null>;
+  readonly canvasWidth: number;
+  readonly canvasHeight: number;
 }
 
 const VIEWBOX_WIDTH = 1280;
 const VIEWBOX_HEIGHT = 880;
-const NODE_RADIUS = 48;
+const NODE_RADIUS = 42;
+const MIN_HORIZONTAL_GAP = NODE_RADIUS * 2 + 24;
+const MIN_VERTICAL_GAP = NODE_RADIUS * 2 + 58;
+const ROOT_LABEL_ROW_STEP = 20;
+const ROOT_LABEL_COL_STEP = 78;
+const ROOT_LABELS_PER_COLUMN = 5;
 const DUMMY_ROOT_NODE_ID = -1;
 const DUMMY_ROOT_LABEL = "root";
 const CANVAS_PADDING = {
   left: 70,
   right: 70,
-  top: 62,
-  bottom: 104
+  top: 120,
+  bottom: 116
 } as const;
 
 function edgeKey(fromNodeId: number, toNodeId: number): string {
@@ -442,7 +449,7 @@ function buildUnifiedModel(versions: PersistentTreeVersionView[]): UnifiedTreeMo
     }
 
     if (ids.length === 1) {
-      xPositions.set(ids[0]!, maxLevelWidth / 2);
+      xPositions.set(ids[0]!, Math.max(maxLevelWidth - 1, 1) / 2);
       continue;
     }
 
@@ -452,9 +459,15 @@ function buildUnifiedModel(versions: PersistentTreeVersionView[]): UnifiedTreeMo
     });
   }
 
-  const xScale = (VIEWBOX_WIDTH - CANVAS_PADDING.left - CANVAS_PADDING.right) / Math.max(maxLevelWidth - 1, 1);
-  const yScale = (VIEWBOX_HEIGHT - CANVAS_PADDING.top - CANVAS_PADDING.bottom) / Math.max(maxDepth, 1);
-  const singleLevelY = CANVAS_PADDING.top + (VIEWBOX_HEIGHT - CANVAS_PADDING.top - CANVAS_PADDING.bottom) / 2;
+  const xSpanUnits = Math.max(maxLevelWidth - 1, 1);
+  const ySpanUnits = Math.max(maxDepth, 1);
+  const baseWidth = VIEWBOX_WIDTH - CANVAS_PADDING.left - CANVAS_PADDING.right;
+  const baseHeight = VIEWBOX_HEIGHT - CANVAS_PADDING.top - CANVAS_PADDING.bottom;
+  const xScale = Math.max(baseWidth / xSpanUnits, MIN_HORIZONTAL_GAP);
+  const yScale = Math.max(baseHeight / ySpanUnits, MIN_VERTICAL_GAP);
+  const canvasWidth = CANVAS_PADDING.left + CANVAS_PADDING.right + xSpanUnits * xScale;
+  const canvasHeight = CANVAS_PADDING.top + CANVAS_PADDING.bottom + ySpanUnits * yScale;
+  const singleLevelY = CANVAS_PADDING.top + (canvasHeight - CANVAS_PADDING.top - CANVAS_PADDING.bottom) / 2;
 
   const nodes: UnifiedNode[] = Array.from(nodeMetaById.entries())
     .map(([nodeId, meta]) => {
@@ -490,7 +503,9 @@ function buildUnifiedModel(versions: PersistentTreeVersionView[]): UnifiedTreeMo
     copyEdges: copyPointers,
     versionEdges,
     versionNodes,
-    rootByVersion
+    rootByVersion,
+    canvasWidth,
+    canvasHeight
   };
 }
 
@@ -670,7 +685,10 @@ export function PersistentTreeView({ versions, visibleVersions, activeVersion, l
               </Text>
             ) : null}
 
-            <svg className="tree-canvas tree-unified-canvas" viewBox={`0 0 ${VIEWBOX_WIDTH} ${VIEWBOX_HEIGHT}`}>
+            <svg
+              className="tree-canvas tree-unified-canvas"
+              viewBox={`0 0 ${Math.ceil(unified.canvasWidth)} ${Math.ceil(unified.canvasHeight)}`}
+            >
               <g className="tree-unified-base-edges" pointerEvents="none">
                 {visibleEdges.map((edge) => {
                   const source = unified.nodeById.get(edge.fromNodeId);
@@ -837,13 +855,17 @@ export function PersistentTreeView({ versions, visibleVersions, activeVersion, l
                     const color = versionColor(index, visibleSnapshots.length, isActive, isLatest);
                     const offsetIndex = rootLabelOffsetByNodeId.get(rootNodeId) ?? 0;
                     rootLabelOffsetByNodeId.set(rootNodeId, offsetIndex + 1);
+                    const column = Math.floor(offsetIndex / ROOT_LABELS_PER_COLUMN);
+                    const row = offsetIndex % ROOT_LABELS_PER_COLUMN;
+                    const labelX = root.x + NODE_RADIUS + 10 + column * ROOT_LABEL_COL_STEP;
+                    const labelY = CANVAS_PADDING.top - 18 + row * ROOT_LABEL_ROW_STEP;
 
                     return (
                       <text
                         key={`root-${snapshot.version}`}
                         className="tree-version-root-label"
-                        x={root.x + NODE_RADIUS + 10}
-                        y={root.y - NODE_RADIUS - 8 + offsetIndex * 15}
+                        x={labelX}
+                        y={labelY}
                         style={{ fill: color }}
                       >
                         {normalizeVersion(snapshot.version)}

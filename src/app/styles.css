@@ -146,7 +146,7 @@ header p {
 }
 
 .tree-unified-canvas {
-  min-height: 620px;
+  min-height: 700px;
 }
 
 .tree-edge {
@@ -184,8 +184,12 @@ header p {
 
 .tree-version-root-label {
   font-family: "IBM Plex Mono", "Fira Code", monospace;
-  font-size: 22px;
+  font-size: 18px;
   font-weight: 700;
+  paint-order: stroke;
+  stroke: #ffffff;
+  stroke-width: 4px;
+  stroke-linejoin: round;
 }
 
 .tree-empty-state {
