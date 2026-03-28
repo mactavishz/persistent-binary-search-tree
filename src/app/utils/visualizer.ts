@@ -126,6 +126,16 @@ function formatSlabRange(start: number, end: number): string {
   return `x in [${formatCoord(start)}, ${formatCoord(end)}]`;
 }
 
+function formatResolvedFaceName(classification: "inside" | "outer" | "boundary", faceId: number | null): string {
+  if (classification === "boundary") {
+    return "boundary";
+  }
+  if (classification === "outer") {
+    return "outerFace";
+  }
+  return faceId === null ? "inside" : `F${faceId}`;
+}
+
 function buildEdgeHighlights(params: {
   readonly activeEdgeIds?: readonly number[];
   readonly addedEdgeIds?: readonly number[];
@@ -159,10 +169,35 @@ export function buildVisualizerRun(params: {
   const { build, points, queryTraces } = params;
   const frames: VisualizerFrame[] = [];
 
+  // These arrays/maps are intentionally accumulated once and reused for all later frames,
+  // so playback can scrub without recomputing historical slab context.
   const slabLines: Array<{ name: string; start: number; end: number }> = [];
   const resolvedSoFar: QueryBundle[] = [];
+  const slabByStart = new Map<number, { name: string; start: number; end: number; version: number }>();
+  const slabByVersion = new Map<number, { name: string; start: number; end: number; version: number }>();
+
+  const slabNameFromStart = (start: number): string => slabByStart.get(start)?.name ?? `start ${formatCoord(start)}`;
+  const slabNameFromVersion = (version: number | null): string | null => {
+    if (version === null) {
+      return null;
+    }
+    return slabByVersion.get(version)?.name ?? `s${version}`;
+  };
 
   for (const step of build.trace.slabSteps) {
+    slabByStart.set(step.slab.start, {
+      name: step.slab.name,
+      start: step.slab.start,
+      end: step.slab.end,
+      version: step.slab.version
+    });
+    slabByVersion.set(step.slab.version, {
+      name: step.slab.name,
+      start: step.slab.start,
+      end: step.slab.end,
+      version: step.slab.version
+    });
+
     slabLines.push({
       name: step.slab.name,
       start: step.slab.start,
@@ -232,25 +267,31 @@ export function buildVisualizerRun(params: {
         title = `Boundary check for ${name}`;
         detail = event.isBoundary ? "Point lies on a boundary edge." : "Point is not on a boundary edge; continue with slab search.";
       } else if (event.kind === "slab-search-step") {
+        // Trace events only carry slab boundaries; the adapter resolves user-facing names.
+        const comparedName = slabNameFromStart(event.comparedSlabStart);
+        const comparedSlab = slabByStart.get(event.comparedSlabStart);
+        const candidateName = event.candidateSlabStart === null ? null : slabNameFromStart(event.candidateSlabStart);
         stepperPhase = "Locate slab";
         title = `Binary search slabs for ${name}`;
-        detail = `Compare x=${formatCoord(event.queryX)} with ${event.comparedSlabName} start ${formatCoord(event.comparedStart)}; move ${event.direction}.`;
+        detail = `Compare x=${formatCoord(event.queryX)} with ${comparedName} ${formatSlabRange(event.comparedSlabStart, event.comparedSlabEnd)}; move ${event.direction}.`;
         detailLines = [
-          event.candidateSlabName === null
+          candidateName === null
             ? "Current candidate slab: none"
-            : `Current candidate slab: ${event.candidateSlabName} (start ${formatCoord(event.candidateSlabStart ?? 0)})`
+            : `Current candidate slab: ${candidateName} (start ${formatCoord(event.candidateSlabStart ?? 0)})`
         ];
-        activeSlabName = event.comparedSlabName;
+        activeSlabName = comparedSlab?.name ?? null;
       } else if (event.kind === "slab-selected") {
+        const slabName = slabNameFromVersion(event.slabVersion) ?? `s${event.slabVersion}`;
         stepperPhase = "Locate slab";
         title = `Slab selected for ${name}`;
-        detail = `${event.slabName} selected after binary search.`;
+        detail = `${slabName} selected after binary search.`;
         detailLines = [`Persistent tree version: ${event.slabVersion}`];
-        activeSlabName = event.slabName;
+        activeSlabName = slabName;
         treeSnapshotVersion = event.slabVersion;
       } else if (event.kind === "band-search-step") {
+        const slabName = slabNameFromVersion(event.slabVersion) ?? `s${event.slabVersion}`;
         stepperPhase = "Search edges";
-        title = `Search edge in ${event.slabName} for ${name}`;
+        title = `Search edge in ${slabName} for ${name}`;
         detail = `Compare point y=${formatCoord(event.queryY)} with y(${edgeLabel(event.segmentEdgeId)}, x=${formatCoord(event.queryX)})=${formatCoord(event.segmentY)}; move to the ${event.direction === "lower" ? "lower" : "upper"} half.`;
         detailLines = [
           event.candidateEdgeId === null
@@ -259,23 +300,24 @@ export function buildVisualizerRun(params: {
         ];
         highlightedEdgeIds = [event.segmentEdgeId];
         edgeHighlights = buildEdgeHighlights({ searchEdgeIds: [event.segmentEdgeId] });
-        activeSlabName = event.slabName;
+        activeSlabName = slabName;
       } else if (event.kind === "band-selected") {
+        const slabName = slabNameFromVersion(event.slabVersion) ?? `s${event.slabVersion}`;
         stepperPhase = "Search edges";
         title = `Edge search resolved for ${name}`;
-        detail = `Selected upper edge in ${event.slabName}; resolve the face next.`;
+        detail = `Selected upper edge in ${slabName}; resolve the face next.`;
         detailLines = [
           event.segmentEdgeId === null ? "No edge directly above the point in this slab." : `Nearest upper edge: ${edgeLabel(event.segmentEdgeId)}`
         ];
         highlightedEdgeIds = event.segmentEdgeId === null ? [] : [event.segmentEdgeId];
         edgeHighlights = buildEdgeHighlights({ searchEdgeIds: event.segmentEdgeId === null ? [] : [event.segmentEdgeId] });
-        activeSlabName = event.slabName;
+        activeSlabName = slabName;
       } else if (event.kind === "face-resolved") {
         stepperPhase = "Resolve face";
         title = `Resolved ${name}`;
-        detail = `${event.faceName} (${event.classification}).`;
+        detail = `${formatResolvedFaceName(event.classification, event.faceId)} (${event.classification}).`;
         highlightedFaceId = event.faceId;
-        activeSlabName = event.slabName;
+        activeSlabName = slabNameFromVersion(event.slabVersion);
       }
 
       frames.push({

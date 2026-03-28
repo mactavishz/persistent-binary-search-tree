@@ -3,6 +3,7 @@ import { buildSlabIndexWithTrace, yAtX } from "./slabs.js";
 import type { SlabIndex, SlabRecord } from "./slabs.js";
 import type { BandBinarySearchTraceStep, QueryTraceEvent } from "./trace-types.js";
 
+// Tolerance for geometric predicates used in point-on-segment and boundary x matching.
 const EPSILON = 1e-7;
 
 interface EdgeGeometry {
@@ -28,7 +29,7 @@ export interface PointLocationResult {
 
 export interface PointLocationIndex {
   readonly slabIndex: SlabIndex;
-  readonly faceByUpperEdgeBySlab: Map<string, Map<number | null, number | null>>;
+  readonly faceByUpperEdge: Map<number | null, number | null>;
   readonly edgeGeometryById: Map<number, EdgeGeometry>;
   readonly boundaryXValues: number[];
   readonly boundaryEdgeIdsByX: Map<number, number[]>;
@@ -102,6 +103,8 @@ function faceBelowEdge(mesh: Mesh, edge: HalfEdge): number | null {
   const leftFaceId = edge.face?.id ?? null;
   const rightFaceId = edge.twin?.face?.id ?? null;
 
+  // We interpret "below" using edge direction. For left-to-right edges, the right face is below;
+  // for right-to-left edges, the left face is below. Vertical edges keep either side as fallback.
   if (dx > 0) {
     return rightFaceId ?? leftFaceId ?? fallback;
   }
@@ -138,6 +141,7 @@ function nearestBoundaryX(boundaryXValues: readonly number[], x: number): number
   let best: number | null = null;
   let bestDelta = Number.POSITIVE_INFINITY;
   for (const candidate of candidates) {
+    // Match boundary lines with epsilon tolerance to absorb floating-point round-off.
     const delta = Math.abs(candidate - x);
     if (delta <= EPSILON && delta < bestDelta) {
       best = candidate;
@@ -227,15 +231,11 @@ export function buildPointLocationIndexWithTrace(mesh: Mesh): PointLocationBuild
     faceByUpperEdge
   } = buildEdgeIndexes(mesh);
 
-  const faceByUpperEdgeBySlab = new Map<string, Map<number | null, number | null>>();
-  for (const slab of slabIndex.slabs) {
-    faceByUpperEdgeBySlab.set(slab.name, faceByUpperEdge);
-  }
-
   return {
     index: {
       slabIndex,
-      faceByUpperEdgeBySlab,
+      // The edge->face relation is topology-based and independent of slab partitioning.
+      faceByUpperEdge,
       edgeGeometryById,
       boundaryXValues,
       boundaryEdgeIdsByX
@@ -260,7 +260,7 @@ function locateBandTreeSearch(
       const segmentY = yAtX(step.node.value, x);
       onStep?.({
         kind: "band-search-step",
-        slabName: slab.name,
+        slabVersion: slab.version,
         segmentEdgeId: step.node.value.edgeId,
         queryX: x,
         queryY: y,
@@ -274,19 +274,90 @@ function locateBandTreeSearch(
   return upper?.value.edgeId ?? null;
 }
 
-function boundaryResult(pointName: string, slabName: string, events: QueryTraceEvent[]): PointLocationTraceResult {
+function pushFaceResolvedEvent(
+  events: QueryTraceEvent[],
+  params: {
+    readonly pointName: string;
+    readonly slabVersion: number | null;
+    readonly faceId: number | null;
+    readonly classification: "inside" | "outer" | "boundary";
+  }
+): void {
+  events.push({
+    kind: "face-resolved",
+    pointName: params.pointName,
+    slabVersion: params.slabVersion,
+    faceId: params.faceId,
+    classification: params.classification
+  });
+}
+
+function pushBoundaryCheckEvent(events: QueryTraceEvent[], pointName: string, isBoundary: boolean): void {
+  events.push({
+    kind: "boundary-check",
+    pointName,
+    isBoundary
+  });
+}
+
+function findSlabForQuery(index: PointLocationIndex, queryX: number, events: QueryTraceEvent[]): SlabRecord | null {
+  const slabNode = index.slabIndex.slabTree.searchLETrace(queryX, (step) => {
+    const slab = step.node.value;
+    events.push({
+      kind: "slab-search-step",
+      queryX,
+      comparedSlabStart: slab.start,
+      comparedSlabEnd: slab.end,
+      direction: step.direction,
+      candidateSlabStart: step.candidate?.value.start ?? null
+    });
+  });
+
+  return slabNode?.value ?? index.slabIndex.slabs[0] ?? null;
+}
+
+function resolveFaceForSelection(
+  mesh: Mesh,
+  index: PointLocationIndex,
+  slabName: string,
+  upperEdgeId: number | null
+): PointLocationResult {
+  const faceId = index.faceByUpperEdge.get(upperEdgeId) ?? mesh.outerFace?.id ?? null;
+  const face = faceId !== null ? mesh.faces[faceId] ?? null : null;
+
+  if (face === null || face.isOuter) {
+    return {
+      slabName,
+      faceId,
+      faceName: "outerFace",
+      classification: "outer"
+    };
+  }
+
+  return {
+    slabName,
+    faceId: face.id,
+    faceName: `F${face.id}`,
+    classification: "inside"
+  };
+}
+
+function boundaryResult(
+  pointName: string,
+  slabName: string,
+  slabVersion: number | null,
+  events: QueryTraceEvent[]
+): PointLocationTraceResult {
   const result: PointLocationResult = {
     slabName,
     faceId: null,
     faceName: "boundary",
     classification: "boundary"
   };
-  events.push({
-    kind: "face-resolved",
+  pushFaceResolvedEvent(events, {
     pointName,
-    slabName,
+    slabVersion,
     faceId: null,
-    faceName: "boundary",
     classification: "boundary"
   });
   return { result, events };
@@ -300,26 +371,10 @@ export function traceLocatePoint(mesh: Mesh, index: PointLocationIndex, point: Q
   const pointName = point.name ?? "query";
   const events: QueryTraceEvent[] = [];
 
-  const slabNode = index.slabIndex.slabTree.searchLETrace(point.x, (step) => {
-    const slab = step.node.value;
-    events.push({
-      kind: "slab-search-step",
-      queryX: point.x,
-      comparedSlabName: slab.name,
-      comparedStart: slab.start,
-      direction: step.direction,
-      candidateSlabName: step.candidate?.value.name ?? null,
-      candidateSlabStart: step.candidate?.value.start ?? null
-    });
-  });
-
-  const slab = slabNode?.value ?? index.slabIndex.slabs[0];
+  // Query pipeline: locate slab by x, run boundary checks, locate upper edge by y, then resolve face.
+  const slab = findSlabForQuery(index, point.x, events);
   if (!slab) {
-    events.push({
-      kind: "boundary-check",
-      pointName,
-      isBoundary: false
-    });
+    pushBoundaryCheckEvent(events, pointName, false);
 
     const result: PointLocationResult = {
       slabName: "none",
@@ -327,12 +382,10 @@ export function traceLocatePoint(mesh: Mesh, index: PointLocationIndex, point: Q
       faceName: "outerFace",
       classification: "outer"
     };
-    events.push({
-      kind: "face-resolved",
+    pushFaceResolvedEvent(events, {
       pointName,
-      slabName: "none",
+      slabVersion: null,
       faceId: result.faceId,
-      faceName: result.faceName,
       classification: "outer"
     });
     return { result, events };
@@ -341,17 +394,13 @@ export function traceLocatePoint(mesh: Mesh, index: PointLocationIndex, point: Q
   events.push({
     kind: "slab-selected",
     pointName,
-    slabName: slab.name,
     slabVersion: slab.version
   });
 
+  // Fast boundary-line pass avoids unnecessary tree lookups for obvious boundary points.
   if (isBoundaryOnBoundaryLine(index, point.x, point.y)) {
-    events.push({
-      kind: "boundary-check",
-      pointName,
-      isBoundary: true
-    });
-    return boundaryResult(pointName, slab.name, events);
+    pushBoundaryCheckEvent(events, pointName, true);
+    return boundaryResult(pointName, slab.name, slab.version, events);
   }
 
   const upperEdgeId = locateBandTreeSearch(index, slab, point.x, point.y, (step) => {
@@ -359,57 +408,25 @@ export function traceLocatePoint(mesh: Mesh, index: PointLocationIndex, point: Q
   });
 
   const boundary = isBoundaryOnEdge(index, upperEdgeId, point.x, point.y);
-  events.push({
-    kind: "boundary-check",
-    pointName,
-    isBoundary: boundary
-  });
+  pushBoundaryCheckEvent(events, pointName, boundary);
 
   if (boundary) {
-    return boundaryResult(pointName, slab.name, events);
+    return boundaryResult(pointName, slab.name, slab.version, events);
   }
 
   events.push({
     kind: "band-selected",
     pointName,
-    slabName: slab.name,
+    slabVersion: slab.version,
     segmentEdgeId: upperEdgeId
   });
 
-  const faceId = index.faceByUpperEdgeBySlab.get(slab.name)?.get(upperEdgeId) ?? mesh.outerFace?.id ?? null;
-  const face = faceId !== null ? mesh.faces[faceId] ?? null : null;
-
-  if (face === null || face.isOuter) {
-    const result: PointLocationResult = {
-      slabName: slab.name,
-      faceId,
-      faceName: "outerFace",
-      classification: "outer"
-    };
-    events.push({
-      kind: "face-resolved",
-      pointName,
-      slabName: slab.name,
-      faceId,
-      faceName: "outerFace",
-      classification: "outer"
-    });
-    return { result, events };
-  }
-
-  const result: PointLocationResult = {
-    slabName: slab.name,
-    faceId: face.id,
-    faceName: `F${face.id}`,
-    classification: "inside"
-  };
-  events.push({
-    kind: "face-resolved",
+  const result = resolveFaceForSelection(mesh, index, slab.name, upperEdgeId);
+  pushFaceResolvedEvent(events, {
     pointName,
-    slabName: slab.name,
-    faceId: face.id,
-    faceName: `F${face.id}`,
-    classification: "inside"
+    slabVersion: slab.version,
+    faceId: result.faceId,
+    classification: result.classification
   });
   return { result, events };
 }

@@ -56,12 +56,15 @@ function renderTree(props: RenderProps) {
   const root = createRoot(container);
 
   const doRender = (nextProps: RenderProps) => {
+    const visibleVersionsProps =
+      nextProps.visibleVersions === undefined ? {} : { visibleVersions: nextProps.visibleVersions };
+
     flushSync(() => {
       root.render(
         <MantineProvider env="test" forceColorScheme="light">
           <PersistentTreeView
             versions={nextProps.versions}
-            visibleVersions={nextProps.visibleVersions}
+            {...visibleVersionsProps}
             activeVersion={nextProps.activeVersion}
             latestVersion={nextProps.latestVersion}
           />

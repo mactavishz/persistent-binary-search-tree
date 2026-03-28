@@ -85,6 +85,10 @@ function maxSnapshotDepth(nodes: SnapshotNode<unknown, unknown>[]): number {
   return walk(root.nodeId);
 }
 
+function eventKinds(events: Array<{ kind: string }>): string[] {
+  return events.map((event) => event.kind);
+}
+
 describe("point location", () => {
   it("classifies inside, outer and boundary points for planar_1", () => {
     const { mesh, index } = setup(PLANAR_1);
@@ -142,6 +146,26 @@ describe("point location", () => {
     expect(build.trace.slabSteps[0]?.kind).toBe("slab-built");
   });
 
+  it("builds a shared edge-to-face lookup with an outer-face fallback", () => {
+    const parsed = parseObj(PLANAR_1);
+    const mesh = new Mesh();
+    mesh.buildMesh(parsed.vertices, [], parsed.faces);
+    const build = buildPointLocationIndexWithTrace(mesh);
+
+    const outerFaceId = mesh.outerFace?.id ?? null;
+    const lookup = build.index.faceByUpperEdge;
+
+    expect(lookup.size).toBeGreaterThan(0);
+    expect(lookup.has(null)).toBe(true);
+    expect(lookup.get(null) ?? null).toBe(outerFaceId);
+
+    const mappedEntries = Array.from(lookup.entries()).filter(([edgeId]) => edgeId !== null);
+    expect(mappedEntries.length).toBeGreaterThan(0);
+    for (const [, faceId] of mappedEntries) {
+      expect(faceId === null || Number.isInteger(faceId)).toBe(true);
+    }
+  });
+
   it("records comparison data for slab lookup and edge search", () => {
     const { mesh, index } = setup(PLANAR_1);
     const point = { x: 2, y: 1.5, name: "p0" };
@@ -155,16 +179,18 @@ describe("point location", () => {
 
     for (const event of slabSteps) {
       expect(event.queryX).toBe(point.x);
-      if (event.candidateSlabName === null) {
+      if (event.candidateSlabStart === null) {
         expect(event.candidateSlabStart).toBeNull();
       } else {
         expect(typeof event.candidateSlabStart).toBe("number");
       }
+      expect(event.comparedSlabStart <= event.comparedSlabEnd).toBe(true);
     }
 
     for (const event of edgeSteps) {
       expect(event.queryX).toBe(point.x);
       expect(event.queryY).toBe(point.y);
+      expect(event.slabVersion).toBeGreaterThanOrEqual(0);
       expect(Number.isFinite(event.segmentY)).toBe(true);
       expect(event.segmentEdgeId).toBeGreaterThanOrEqual(0);
       expect(["lower", "higher"]).toContain(event.direction);
@@ -200,8 +226,82 @@ describe("point location", () => {
     const build = buildPointLocationIndexWithTrace(mesh);
     const traced = traceLocatePoint(mesh, build.index, { x: 2.4, y: 1.4, name: "p0" });
     const slabSteps = traced.events.filter((event) => event.kind === "slab-search-step");
-    const middleSlab = build.trace.slabSteps[Math.floor(build.trace.slabSteps.length / 2)]?.slab.name;
+    const middleSlabStart = build.trace.slabSteps[Math.floor(build.trace.slabSteps.length / 2)]?.slab.start;
 
-    expect(slabSteps[0]?.comparedSlabName).toBe(middleSlab);
+    expect(slabSteps[0]?.comparedSlabStart).toBe(middleSlabStart);
+  });
+
+  it("builds slabs with contiguous ranges and stable naming", () => {
+    const parsed = parseObj(PLANAR_2);
+    const mesh = new Mesh();
+    mesh.buildMesh(parsed.vertices, [], parsed.faces);
+
+    const first = buildPointLocationIndexWithTrace(mesh);
+    const second = buildPointLocationIndexWithTrace(mesh);
+
+    const firstSlabs = first.index.slabIndex.slabs;
+    const secondSlabs = second.index.slabIndex.slabs;
+
+    expect(firstSlabs.length).toBeGreaterThan(0);
+    expect(firstSlabs.length).toBe(secondSlabs.length);
+
+    expect(firstSlabs[0]?.start).toBe(-Infinity);
+    expect(firstSlabs[firstSlabs.length - 1]?.end).toBe(Infinity);
+
+    for (let i = 0; i < firstSlabs.length; i += 1) {
+      const slab = firstSlabs[i]!;
+      const sameSlab = secondSlabs[i]!;
+      expect(slab.name).toBe(`s${i}`);
+      expect(sameSlab.name).toBe(slab.name);
+      expect(slab.start).toBe(sameSlab.start);
+      expect(slab.end).toBe(sameSlab.end);
+      expect(slab.version).toBe(sameSlab.version);
+      expect(slab.start <= slab.end).toBe(true);
+
+      if (i > 0) {
+        expect(firstSlabs[i - 1]!.end).toBe(slab.start);
+      }
+    }
+  });
+
+  it("emits a complete query trace with one boundary check and terminal face resolution", () => {
+    const { mesh, index } = setup(PLANAR_1);
+    const traced = traceLocatePoint(mesh, index, { x: 2, y: 1.5, name: "p0" });
+    const kinds = eventKinds(traced.events);
+
+    const boundaryEvents = traced.events.filter((event) => event.kind === "boundary-check");
+    const slabSelectedEvents = traced.events.filter((event) => event.kind === "slab-selected");
+    const faceResolvedEvents = traced.events.filter((event) => event.kind === "face-resolved");
+    const bandSelectedEvents = traced.events.filter((event) => event.kind === "band-selected");
+
+    expect(kinds.includes("slab-search-step")).toBe(true);
+    expect(boundaryEvents).toHaveLength(1);
+    expect(slabSelectedEvents).toHaveLength(1);
+    expect(faceResolvedEvents).toHaveLength(1);
+    expect(bandSelectedEvents).toHaveLength(1);
+    expect(kinds[kinds.length - 1]).toBe("face-resolved");
+
+    const slabSelectedIndex = kinds.indexOf("slab-selected");
+    const boundaryCheckIndex = kinds.indexOf("boundary-check");
+    const bandSelectedIndex = kinds.indexOf("band-selected");
+
+    expect(slabSelectedIndex).toBeGreaterThanOrEqual(0);
+    expect(boundaryCheckIndex).toBeGreaterThan(slabSelectedIndex);
+    expect(bandSelectedIndex).toBeGreaterThan(boundaryCheckIndex);
+  });
+
+  it("short-circuits to boundary result when boundary line check succeeds", () => {
+    const { mesh, index } = setup(PLANAR_1);
+    const traced = traceLocatePoint(mesh, index, { x: 1.5, y: 2, name: "p-boundary" });
+    const kinds = eventKinds(traced.events);
+    const boundaryEvent = traced.events.find((event) => event.kind === "boundary-check");
+
+    expect(traced.result.classification).toBe("boundary");
+    expect(boundaryEvent?.kind).toBe("boundary-check");
+    if (boundaryEvent?.kind === "boundary-check") {
+      expect(boundaryEvent.isBoundary).toBe(true);
+    }
+    expect(kinds.includes("band-selected")).toBe(false);
+    expect(kinds[kinds.length - 1]).toBe("face-resolved");
   });
 });

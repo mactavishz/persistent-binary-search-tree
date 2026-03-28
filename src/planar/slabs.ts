@@ -37,7 +37,10 @@ interface SegmentGeometry {
   readonly maxX: number;
 }
 
+// Initial spacing for segment order keys. Large gaps let us insert many new segments
+// between neighbors without relabeling all active segments on each slab boundary.
 const LABEL_STEP = 1024;
+// If available key spacing drops below this threshold, we relabel all active segments.
 const MIN_LABEL_GAP = 1e-6;
 
 function compareSegmentKeys(a: SegmentKey, b: SegmentKey): number {
@@ -58,6 +61,8 @@ function compareSegmentKeys(a: SegmentKey, b: SegmentKey): number {
 
 function yAtX(segment: Pick<ActiveSegment, "x1" | "y1" | "x2" | "y2">, x: number): number {
   if (segment.x1 === segment.x2) {
+    // Vertical segments are excluded from slabs, but this keeps ordering deterministic
+    // for any fallback or diagnostic usage.
     return Math.min(segment.y1, segment.y2);
   }
   const t = (x - segment.x1) / (segment.x2 - segment.x1);
@@ -191,6 +196,7 @@ function assignLabelsToNewSegments(segments: ActiveSegment[]): boolean {
     const leftOrder = runStart > 0 ? segments[runStart - 1]!.key.order : null;
     const rightOrder = runEnd < segments.length ? segments[runEnd]!.key.order : null;
 
+    // No neighbors: start a fresh monotone block.
     if (leftOrder === null && rightOrder === null) {
       for (let k = 0; k < runCount; k += 1) {
         const segment = segments[runStart + k]!;
@@ -202,6 +208,7 @@ function assignLabelsToNewSegments(segments: ActiveSegment[]): boolean {
       continue;
     }
 
+    // Only right neighbor exists: assign labels backwards with fixed spacing.
     if (leftOrder === null && rightOrder !== null) {
       for (let k = 0; k < runCount; k += 1) {
         const segment = segments[runStart + k]!;
@@ -213,6 +220,7 @@ function assignLabelsToNewSegments(segments: ActiveSegment[]): boolean {
       continue;
     }
 
+    // Only left neighbor exists: assign labels forwards with fixed spacing.
     if (leftOrder !== null && rightOrder === null) {
       for (let k = 0; k < runCount; k += 1) {
         const segment = segments[runStart + k]!;
@@ -227,6 +235,8 @@ function assignLabelsToNewSegments(segments: ActiveSegment[]): boolean {
     const span = (rightOrder ?? 0) - (leftOrder ?? 0);
     const step = span / (runCount + 1);
     if (!(step > MIN_LABEL_GAP)) {
+      // The local gap is too small to preserve strict order with numeric stability.
+      // Caller must rebuild labels for all active segments.
       return false;
     }
 
@@ -293,6 +303,92 @@ function isActiveAtX(segment: SegmentGeometry, sampleX: number): boolean {
   return sampleX > segment.minX && sampleX < segment.maxX;
 }
 
+function removeLeavingSegmentsAtBoundary(params: {
+  readonly start: number;
+  readonly leaveEvents: Map<number, SegmentGeometry[]>;
+  readonly segmentTree: PartialPersistentBinarySearchTree<ActiveSegment, SegmentKey>;
+  readonly activeByEdgeId: Map<number, ActiveSegment>;
+  readonly activeSegments: ActiveSegment[];
+}): {
+  readonly activeSegments: ActiveSegment[];
+  readonly leftEdgeIds: number[];
+} {
+  const leaving = params.leaveEvents.get(params.start) ?? [];
+  const removedKeys: SegmentKey[] = [];
+  const leftEdgeIds: number[] = [];
+
+  for (const segment of leaving) {
+    const active = params.activeByEdgeId.get(segment.edgeId);
+    if (!active) {
+      continue;
+    }
+    leftEdgeIds.push(segment.edgeId);
+    removedKeys.push(active.key);
+  }
+
+  if (removedKeys.length === 0) {
+    return {
+      activeSegments: params.activeSegments,
+      leftEdgeIds
+    };
+  }
+
+  params.segmentTree.delete(removedKeys);
+  const leftSet = new Set(leftEdgeIds);
+  const activeSegments = params.activeSegments.filter((segment) => !leftSet.has(segment.edgeId));
+  for (const edgeId of leftEdgeIds) {
+    params.activeByEdgeId.delete(edgeId);
+  }
+
+  return {
+    activeSegments,
+    leftEdgeIds
+  };
+}
+
+function collectEnteringSegmentsAtBoundary(
+  start: number,
+  sampleX: number,
+  enterEvents: Map<number, SegmentGeometry[]>
+): ActiveSegment[] {
+  const entering = (enterEvents.get(start) ?? [])
+    .filter((segment) => isActiveAtX(segment, sampleX))
+    .map((segment) => segmentFromGeometry(segment, Number.NaN));
+
+  if (entering.length > 1) {
+    sortSegmentsByYAtX(entering, sampleX);
+  }
+
+  return entering;
+}
+
+function applyEnteringSegments(params: {
+  readonly entering: ActiveSegment[];
+  readonly activeSegments: ActiveSegment[];
+  readonly sampleX: number;
+  readonly segmentTree: PartialPersistentBinarySearchTree<ActiveSegment, SegmentKey>;
+}): ActiveSegment[] {
+  if (params.entering.length === 0) {
+    return params.activeSegments;
+  }
+
+  const merged = mergeActiveSegmentsByY(params.activeSegments, params.entering, params.sampleX);
+  const survivorKeys = params.activeSegments.map((segment) => segment.key);
+
+  if (!assignLabelsToNewSegments(merged)) {
+    // Rare fallback when nearby insertions exhaust numeric label gaps.
+    relabelAllSegments(merged);
+    if (survivorKeys.length > 0) {
+      params.segmentTree.delete(survivorKeys);
+    }
+    params.segmentTree.insert(toBalancedInsertionOrder(merged));
+    return merged;
+  }
+
+  params.segmentTree.insert(toBalancedInsertionOrder(params.entering));
+  return merged;
+}
+
 export function buildSlabIndex(mesh: Mesh): SlabIndex {
   return buildSlabIndexWithTrace(mesh).index;
 }
@@ -355,53 +451,28 @@ export function buildSlabIndexWithTrace(mesh: Mesh): {
     const enteredEdgeIds: number[] = [];
 
     if (Number.isFinite(start)) {
-      const leaving = leaveEvents.get(start) ?? [];
-      const removedKeys: SegmentKey[] = [];
-      for (const segment of leaving) {
-        const active = activeByEdgeId.get(segment.edgeId);
-        if (!active) {
-          continue;
-        }
-        leftEdgeIds.push(segment.edgeId);
-        removedKeys.push(active.key);
-      }
+      const leavingResult = removeLeavingSegmentsAtBoundary({
+        start,
+        leaveEvents,
+        segmentTree,
+        activeByEdgeId,
+        activeSegments
+      });
+      activeSegments = leavingResult.activeSegments;
+      leftEdgeIds.push(...leavingResult.leftEdgeIds);
 
-      if (removedKeys.length > 0) {
-        segmentTree.delete(removedKeys);
-        const leftSet = new Set(leftEdgeIds);
-        activeSegments = activeSegments.filter((segment) => !leftSet.has(segment.edgeId));
-        for (const edgeId of leftEdgeIds) {
-          activeByEdgeId.delete(edgeId);
-        }
-      }
-
-      const entering = (enterEvents.get(start) ?? [])
-        .filter((segment) => isActiveAtX(segment, sampleX))
-        .map((segment) => segmentFromGeometry(segment, Number.NaN));
-
-      if (entering.length > 0) {
-        sortSegmentsByYAtX(entering, sampleX);
-        const merged = mergeActiveSegmentsByY(activeSegments, entering, sampleX);
-        const survivorKeys = activeSegments.map((segment) => segment.key);
-
-        if (!assignLabelsToNewSegments(merged)) {
-          // Rare fallback when nearby insertions exhaust numeric label gaps.
-          relabelAllSegments(merged);
-          if (survivorKeys.length > 0) {
-            segmentTree.delete(survivorKeys);
-          }
-          segmentTree.insert(toBalancedInsertionOrder(merged));
-        } else {
-          segmentTree.insert(toBalancedInsertionOrder(entering));
-        }
-
-        for (const segment of entering) {
-          enteredEdgeIds.push(segment.edgeId);
-        }
-        activeSegments = merged;
-      }
+      const entering = collectEnteringSegmentsAtBoundary(start, sampleX, enterEvents);
+      activeSegments = applyEnteringSegments({
+        entering,
+        activeSegments,
+        sampleX,
+        segmentTree
+      });
+      enteredEdgeIds.push(...entering.map((segment) => segment.edgeId));
     }
 
+    // Each insert/delete creates a new persistent version. We store the latest version
+    // per slab so point queries can replay the exact active-set state for that x-range.
     const version = segmentTree.getLatestVersion();
     const snapshot = segmentTree.snapshot(version);
     const snapshotSegments = (snapshot?.nodes ?? [])

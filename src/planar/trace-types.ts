@@ -1,6 +1,7 @@
 import type { ActiveSegment, SegmentKey, SlabRecord } from "./slabs.js";
 import type { TreeSnapshot } from "../persistent/snapshot.js";
 
+// Build traces capture slab snapshots directly because tree visualization replays them verbatim.
 export interface SlabBuildTraceStep {
   readonly kind: "slab-built";
   readonly slab: SlabRecord;
@@ -10,19 +11,20 @@ export interface SlabBuildTraceStep {
   readonly snapshot: TreeSnapshot<ActiveSegment, SegmentKey> | null;
 }
 
+// Query traces remain semantic (coordinates, versions, ids) and avoid UI-specific wording.
+// The visualizer adapter is responsible for deriving labels/text from these fields.
 export interface SlabSearchTraceStep {
   readonly kind: "slab-search-step";
   readonly queryX: number;
-  readonly comparedSlabName: string;
-  readonly comparedStart: number;
+  readonly comparedSlabStart: number;
+  readonly comparedSlabEnd: number;
   readonly direction: "left" | "right";
-  readonly candidateSlabName: string | null;
   readonly candidateSlabStart: number | null;
 }
 
 export interface BandBinarySearchTraceStep {
   readonly kind: "band-search-step";
-  readonly slabName: string;
+  readonly slabVersion: number;
   readonly segmentEdgeId: number;
   readonly queryX: number;
   readonly queryY: number;
@@ -41,21 +43,19 @@ export type QueryTraceEvent =
   | {
       readonly kind: "slab-selected";
       readonly pointName: string;
-      readonly slabName: string;
       readonly slabVersion: number;
     }
   | BandBinarySearchTraceStep
   | {
       readonly kind: "band-selected";
       readonly pointName: string;
-      readonly slabName: string;
+      readonly slabVersion: number;
       readonly segmentEdgeId: number | null;
     }
   | {
       readonly kind: "face-resolved";
       readonly pointName: string;
-      readonly slabName: string;
+      readonly slabVersion: number | null;
       readonly faceId: number | null;
-      readonly faceName: string;
       readonly classification: "inside" | "outer" | "boundary";
     };
