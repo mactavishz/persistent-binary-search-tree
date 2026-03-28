@@ -20,7 +20,7 @@ export interface PointLocationResult {
 
 export interface PointLocationIndex {
   readonly slabIndex: SlabIndex;
-  readonly faceBandsBySlab: Map<string, Array<number | null>>;
+  readonly faceByUpperEdgeBySlab: Map<string, Map<number | null, number | null>>;
 }
 
 export interface PointLocationBuildTrace {
@@ -110,9 +110,14 @@ function isBoundaryPoint(mesh: Mesh, x: number, y: number): boolean {
   return false;
 }
 
-function probeBandFaces(mesh: Mesh, slab: SlabRecord, yMin: number, yMax: number): Array<number | null> {
+function probeFaceByUpperEdge(
+  mesh: Mesh,
+  slab: SlabRecord,
+  yMin: number,
+  yMax: number
+): Map<number | null, number | null> {
   const segmentYs = slab.segments.map((segment) => yAtX(segment, slab.sampleX));
-  const bands: Array<number | null> = [];
+  const faceByUpperEdge = new Map<number | null, number | null>();
 
   for (let band = 0; band <= slab.segments.length; band += 1) {
     const yProbe =
@@ -122,10 +127,11 @@ function probeBandFaces(mesh: Mesh, slab: SlabRecord, yMin: number, yMax: number
           ? yMax + 1
           : (segmentYs[band - 1]! + segmentYs[band]!) / 2;
     const face = findContainingFace(mesh, slab.sampleX, yProbe);
-    bands.push(face ? face.id : mesh.outerFace?.id ?? null);
+    const upperEdgeId = band < slab.segments.length ? slab.segments[band]!.edgeId : null;
+    faceByUpperEdge.set(upperEdgeId, face ? face.id : mesh.outerFace?.id ?? null);
   }
 
-  return bands;
+  return faceByUpperEdge;
 }
 
 export function buildPointLocationIndex(mesh: Mesh): PointLocationIndex {
@@ -142,65 +148,46 @@ export function buildPointLocationIndexWithTrace(mesh: Mesh): PointLocationBuild
 
   const [, max] = bbox;
   const [min] = bbox;
-  const faceBandsBySlab = new Map<string, Array<number | null>>();
+  const faceByUpperEdgeBySlab = new Map<string, Map<number | null, number | null>>();
   for (const slab of slabIndex.slabs) {
-    const bands = probeBandFaces(mesh, slab, min.y, max.y);
-    faceBandsBySlab.set(slab.name, bands);
+    const facesByUpperEdge = probeFaceByUpperEdge(mesh, slab, min.y, max.y);
+    faceByUpperEdgeBySlab.set(slab.name, facesByUpperEdge);
   }
 
   return {
-    index: { slabIndex, faceBandsBySlab },
+    index: { slabIndex, faceByUpperEdgeBySlab },
     trace: {
       slabSteps: slabResult.steps
     }
   };
 }
 
-function locateBandBinarySearch(
+function locateBandTreeSearch(
+  index: PointLocationIndex,
   slab: SlabRecord,
   x: number,
   y: number,
   onStep?: (step: BandBinarySearchTraceStep) => void
-): number {
-  let low = 0;
-  let high = slab.segments.length;
-
-  while (low < high) {
-    const mid = Math.floor((low + high) / 2);
-    const segment = slab.segments[mid]!;
-    const segmentY = yAtX(segment, x);
-    if (y <= segmentY + EPSILON) {
+): number | null {
+  const upper = index.slabIndex.segmentTree.searchFirstGreaterOrEqual(
+    (node) => y - yAtX(node.value, x),
+    slab.version,
+    (step) => {
+      const segmentY = yAtX(step.node.value, x);
       onStep?.({
         kind: "band-search-step",
         slabName: slab.name,
-        low,
-        high,
-        mid,
-        segmentEdgeId: segment.edgeId,
+        segmentEdgeId: step.node.value.edgeId,
         queryX: x,
         queryY: y,
         segmentY,
-        direction: "lower"
+        candidateEdgeId: step.candidate?.value.edgeId ?? null,
+        direction: step.direction === "left" ? "lower" : "higher"
       });
-      high = mid;
-    } else {
-      onStep?.({
-        kind: "band-search-step",
-        slabName: slab.name,
-        low,
-        high,
-        mid,
-        segmentEdgeId: segment.edgeId,
-        queryX: x,
-        queryY: y,
-        segmentY,
-        direction: "higher"
-      });
-      low = mid + 1;
     }
-  }
+  );
 
-  return low;
+  return upper?.value.edgeId ?? null;
 }
 
 export function locatePoint(mesh: Mesh, index: PointLocationIndex, point: QueryPoint): PointLocationResult {
@@ -273,18 +260,17 @@ export function traceLocatePoint(mesh: Mesh, index: PointLocationIndex, point: Q
     slabVersion: slab.version
   });
 
-  const band = locateBandBinarySearch(slab, point.x, point.y, (step) => {
+  const upperEdgeId = locateBandTreeSearch(index, slab, point.x, point.y, (step) => {
     events.push(step);
   });
   events.push({
     kind: "band-selected",
     pointName,
     slabName: slab.name,
-    bandIndex: band,
-    segmentEdgeId: band < slab.segments.length ? slab.segments[band]!.edgeId : null
+    segmentEdgeId: upperEdgeId
   });
 
-  const faceId = index.faceBandsBySlab.get(slab.name)?.[band] ?? mesh.outerFace?.id ?? null;
+  const faceId = index.faceByUpperEdgeBySlab.get(slab.name)?.get(upperEdgeId) ?? mesh.outerFace?.id ?? null;
   const face = faceId !== null ? mesh.faces[faceId] ?? null : null;
 
   if (face === null || face.isOuter) {

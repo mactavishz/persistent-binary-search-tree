@@ -252,14 +252,18 @@ export function buildVisualizerRun(params: {
         stepperPhase = "Search edges";
         title = `Search edge in ${event.slabName} for ${name}`;
         detail = `Compare point y=${formatCoord(event.queryY)} with y(${edgeLabel(event.segmentEdgeId)}, x=${formatCoord(event.queryX)})=${formatCoord(event.segmentY)}; move to the ${event.direction === "lower" ? "lower" : "upper"} half.`;
-        detailLines = [`Search edge: ${edgeLabel(event.segmentEdgeId)} (mid index ${event.mid}, range ${event.low}-${event.high})`];
+        detailLines = [
+          event.candidateEdgeId === null
+            ? `Current upper-edge candidate: none`
+            : `Current upper-edge candidate: ${edgeLabel(event.candidateEdgeId)}`
+        ];
         highlightedEdgeIds = [event.segmentEdgeId];
         edgeHighlights = buildEdgeHighlights({ searchEdgeIds: [event.segmentEdgeId] });
         activeSlabName = event.slabName;
       } else if (event.kind === "band-selected") {
         stepperPhase = "Search edges";
         title = `Edge search resolved for ${name}`;
-        detail = `Selected interval ${event.bandIndex} in ${event.slabName}; resolve the face next.`;
+        detail = `Selected upper edge in ${event.slabName}; resolve the face next.`;
         detailLines = [
           event.segmentEdgeId === null ? "No edge directly above the point in this slab." : `Nearest upper edge: ${edgeLabel(event.segmentEdgeId)}`
         ];

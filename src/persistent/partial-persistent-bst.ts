@@ -65,6 +65,50 @@ export class PartialPersistentBinarySearchTree<T, K = T> {
     return node ? this.toView(node) : null;
   }
 
+  searchFirstGreaterOrEqual(
+    compareSearchToNode: (node: NodeView<T, K>) => number,
+    version?: number,
+    onStep?: (step: {
+      readonly node: NodeView<T, K>;
+      readonly cmp: number;
+      readonly direction: "left" | "right";
+      readonly candidate: NodeView<T, K> | null;
+    }) => void
+  ): NodeView<T, K> | null {
+    const normalized = this.normalizeVersion(version);
+    if (normalized < 0) {
+      return null;
+    }
+
+    let current = this.roots[normalized] ?? null;
+    let candidate: PersistentNode<T, K> | null = null;
+
+    while (current) {
+      const view = this.toView(current);
+      const cmp = compareSearchToNode(view);
+      if (cmp <= 0) {
+        candidate = current;
+        onStep?.({
+          node: view,
+          cmp,
+          direction: "left",
+          candidate: this.toView(candidate)
+        });
+        current = current.get("left", normalized);
+      } else {
+        onStep?.({
+          node: view,
+          cmp,
+          direction: "right",
+          candidate: candidate ? this.toView(candidate) : null
+        });
+        current = current.get("right", normalized);
+      }
+    }
+
+    return candidate ? this.toView(candidate) : null;
+  }
+
   delete(keys: MaybeIterable<K>): number | null {
     const items = toArray(keys);
     if (this.roots.length === 0 || items.length === 0) {

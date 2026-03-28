@@ -212,6 +212,45 @@ describe("PartialPersistentBinarySearchTree (node-copying)", () => {
     expect(tree.search(2, version)?.value.id).toBe("c");
   });
 
+  it("supports version-aware lower-bound search", () => {
+    const tree = new PartialPersistentBinarySearchTree<number>();
+    tree.insert([4, 2, 6, 1, 3, 5]);
+    const v0 = tree.getLatestVersion();
+    tree.insert(7);
+    const v1 = tree.getLatestVersion();
+
+    const lb0 = tree.searchFirstGreaterOrEqual((node) => 4.5 - node.key, v0);
+    const lb1 = tree.searchFirstGreaterOrEqual((node) => 4.5 - node.key, v1);
+    const lbMissing = tree.searchFirstGreaterOrEqual((node) => 8 - node.key, v1);
+
+    expect(lb0?.key).toBe(5);
+    expect(lb1?.key).toBe(5);
+    expect(lbMissing).toBeNull();
+  });
+
+  it("emits lower-bound traversal trace", () => {
+    const tree = new PartialPersistentBinarySearchTree<number>();
+    tree.insert([8, 4, 12, 2, 6, 10, 14]);
+    const steps: Array<{ direction: "left" | "right"; node: number; candidate: number | null }> = [];
+
+    const found = tree.searchFirstGreaterOrEqual(
+      (node) => 11 - node.key,
+      tree.getLatestVersion(),
+      (step) => {
+        steps.push({
+          direction: step.direction,
+          node: step.node.key,
+          candidate: step.candidate?.key ?? null
+        });
+      }
+    );
+
+    expect(found?.key).toBe(12);
+    expect(steps.length).toBeGreaterThan(0);
+    expect(steps.some((step) => step.direction === "left")).toBe(true);
+    expect(steps.some((step) => step.direction === "right")).toBe(true);
+  });
+
   it("creates serializable snapshots", () => {
     const tree = new PartialPersistentBinarySearchTree<number>();
     tree.insert([4, 2, 6, 1, 3]);

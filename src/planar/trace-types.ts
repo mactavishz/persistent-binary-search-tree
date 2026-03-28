@@ -23,13 +23,11 @@ export interface SlabSearchTraceStep {
 export interface BandBinarySearchTraceStep {
   readonly kind: "band-search-step";
   readonly slabName: string;
-  readonly low: number;
-  readonly high: number;
-  readonly mid: number;
   readonly segmentEdgeId: number;
   readonly queryX: number;
   readonly queryY: number;
   readonly segmentY: number;
+  readonly candidateEdgeId: number | null;
   readonly direction: "lower" | "higher";
 }
 
@@ -51,7 +49,6 @@ export type QueryTraceEvent =
       readonly kind: "band-selected";
       readonly pointName: string;
       readonly slabName: string;
-      readonly bandIndex: number;
       readonly segmentEdgeId: number | null;
     }
   | {

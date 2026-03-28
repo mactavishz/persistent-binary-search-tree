@@ -7,6 +7,7 @@ import {
   locatePoint,
   traceLocatePoint
 } from "../src/planar/point-location.js";
+import type { SnapshotNode } from "../src/persistent/snapshot.js";
 
 const PLANAR_1 = `
 v 1.0 4.0 0.0
@@ -48,6 +49,40 @@ function setup(obj: string): { mesh: Mesh; index: ReturnType<typeof buildPointLo
   const mesh = new Mesh();
   mesh.buildMesh(parsed.vertices, [], parsed.faces);
   return { mesh, index: buildPointLocationIndex(mesh) };
+}
+
+function maxSnapshotDepth(nodes: SnapshotNode<unknown, unknown>[]): number {
+  if (nodes.length === 0) {
+    return 0;
+  }
+
+  const nodeById = new Map(nodes.map((node) => [node.nodeId, node]));
+  const childIds = new Set<number>();
+  for (const node of nodes) {
+    if (node.left) {
+      childIds.add(node.left.nodeId);
+    }
+    if (node.right) {
+      childIds.add(node.right.nodeId);
+    }
+  }
+
+  const root = nodes.find((node) => !childIds.has(node.nodeId));
+  if (!root) {
+    return 0;
+  }
+
+  const walk = (nodeId: number): number => {
+    const node = nodeById.get(nodeId);
+    if (!node) {
+      return 0;
+    }
+    const leftDepth = node.left ? walk(node.left.nodeId) : 0;
+    const rightDepth = node.right ? walk(node.right.nodeId) : 0;
+    return 1 + Math.max(leftDepth, rightDepth);
+  };
+
+  return walk(root.nodeId);
 }
 
 describe("point location", () => {
@@ -132,6 +167,29 @@ describe("point location", () => {
       expect(event.queryY).toBe(point.y);
       expect(Number.isFinite(event.segmentY)).toBe(true);
       expect(event.segmentEdgeId).toBeGreaterThanOrEqual(0);
+      expect(["lower", "higher"]).toContain(event.direction);
+      if (event.candidateEdgeId !== null) {
+        expect(event.candidateEdgeId).toBeGreaterThanOrEqual(0);
+      }
+    }
+  });
+
+  it("avoids degenerate linked-list slab snapshots", () => {
+    const parsed = parseObj(PLANAR_2);
+    const mesh = new Mesh();
+    mesh.buildMesh(parsed.vertices, [], parsed.faces);
+    const build = buildPointLocationIndexWithTrace(mesh);
+
+    for (const step of build.trace.slabSteps) {
+      const snapshot = step.snapshot;
+      const count = snapshot?.nodes.length ?? 0;
+      if (count <= 2) {
+        continue;
+      }
+
+      const depth = maxSnapshotDepth(snapshot?.nodes ?? []);
+      const softUpperBound = Math.ceil(Math.log2(count + 1)) * 2;
+      expect(depth).toBeLessThanOrEqual(softUpperBound);
     }
   });
 

@@ -111,6 +111,23 @@ function insertBalancedSlabs(tree: BinarySearchTree<SlabRecord, number>, slabs: 
   insertRange(0, slabs.length);
 }
 
+function toBalancedInsertionOrder<T>(values: readonly T[]): T[] {
+  const ordered: T[] = [];
+
+  const collect = (start: number, end: number): void => {
+    if (start >= end) {
+      return;
+    }
+    const mid = Math.floor((start + end) / 2);
+    ordered.push(values[mid]!);
+    collect(start, mid);
+    collect(mid + 1, end);
+  };
+
+  collect(0, values.length);
+  return ordered;
+}
+
 export function buildSlabIndex(mesh: Mesh): SlabIndex {
   return buildSlabIndexWithTrace(mesh).index;
 }
@@ -167,7 +184,7 @@ export function buildSlabIndexWithTrace(mesh: Mesh): {
       segmentTree.delete(previousKeys);
     }
     if (activeSegments.length > 0) {
-      segmentTree.insert(activeSegments);
+      segmentTree.insert(toBalancedInsertionOrder(activeSegments));
     }
 
     const version = segmentTree.getLatestVersion();
