@@ -4,7 +4,7 @@ import { PartialPersistentBinarySearchTree } from "../persistent/partial-persist
 import type { SlabBuildTraceStep } from "./trace-types.js";
 
 export interface SegmentKey {
-  readonly y: number;
+  readonly order: number;
   readonly tie: number;
 }
 
@@ -15,7 +15,7 @@ export interface ActiveSegment {
   readonly y1: number;
   readonly x2: number;
   readonly y2: number;
-  readonly key: SegmentKey;
+  key: SegmentKey;
 }
 
 export interface SlabRecord {
@@ -27,11 +27,24 @@ export interface SlabRecord {
   readonly segments: ActiveSegment[];
 }
 
+interface SegmentGeometry {
+  readonly edgeId: number;
+  readonly x1: number;
+  readonly y1: number;
+  readonly x2: number;
+  readonly y2: number;
+  readonly minX: number;
+  readonly maxX: number;
+}
+
+const LABEL_STEP = 1024;
+const MIN_LABEL_GAP = 1e-6;
+
 function compareSegmentKeys(a: SegmentKey, b: SegmentKey): number {
-  if (a.y < b.y) {
+  if (a.order < b.order) {
     return -1;
   }
-  if (a.y > b.y) {
+  if (a.order > b.order) {
     return 1;
   }
   if (a.tie < b.tie) {
@@ -51,7 +64,23 @@ function yAtX(segment: Pick<ActiveSegment, "x1" | "y1" | "x2" | "y2">, x: number
   return segment.y1 + t * (segment.y2 - segment.y1);
 }
 
-function segmentFromHalfEdge(edge: HalfEdge, sampleX: number): ActiveSegment | null {
+function compareSegmentsAtX(
+  a: Pick<ActiveSegment, "x1" | "y1" | "x2" | "y2" | "edgeId">,
+  b: Pick<ActiveSegment, "x1" | "y1" | "x2" | "y2" | "edgeId">,
+  x: number
+): number {
+  const ay = yAtX(a, x);
+  const by = yAtX(b, x);
+  if (ay < by) {
+    return -1;
+  }
+  if (ay > by) {
+    return 1;
+  }
+  return a.edgeId - b.edgeId;
+}
+
+function segmentGeometryFromHalfEdge(edge: HalfEdge): SegmentGeometry | null {
   const origin = edge.origin;
   const destination = edge.twin?.origin ?? edge.destination();
   if (origin === null || destination === null) {
@@ -67,28 +96,177 @@ function segmentFromHalfEdge(edge: HalfEdge, sampleX: number): ActiveSegment | n
     return null;
   }
 
-  const minX = Math.min(x1, x2);
-  const maxX = Math.max(x1, x2);
-  if (!(sampleX > minX && sampleX < maxX)) {
-    return null;
-  }
-
-  const y = yAtX({ x1, y1, x2, y2 }, sampleX);
   return {
-    id: edge.id,
     edgeId: edge.id,
     x1,
     y1,
     x2,
     y2,
-    key: { y, tie: edge.id }
+    minX: Math.min(x1, x2),
+    maxX: Math.max(x1, x2)
   };
+}
+
+function segmentFromGeometry(geometry: SegmentGeometry, order: number): ActiveSegment {
+  return {
+    id: geometry.edgeId,
+    edgeId: geometry.edgeId,
+    x1: geometry.x1,
+    y1: geometry.y1,
+    x2: geometry.x2,
+    y2: geometry.y2,
+    key: {
+      order,
+      tie: geometry.edgeId
+    }
+  };
+}
+
+function addToEventMap(map: Map<number, SegmentGeometry[]>, x: number, segment: SegmentGeometry): void {
+  const bucket = map.get(x);
+  if (bucket) {
+    bucket.push(segment);
+  } else {
+    map.set(x, [segment]);
+  }
 }
 
 function collectSlabStarts(mesh: Mesh): number[] {
   const xs = mesh.vertices.map((vertex) => vertex.position.x);
-  const unique = Array.from(new Set(xs)).sort((a, b) => a - b);
-  return unique;
+  return Array.from(new Set(xs)).sort((a, b) => a - b);
+}
+
+function sortSegmentsByYAtX(segments: ActiveSegment[], x: number): void {
+  segments.sort((a, b) => compareSegmentsAtX(a, b, x));
+}
+
+function mergeActiveSegmentsByY(
+  active: readonly ActiveSegment[],
+  entering: readonly ActiveSegment[],
+  sampleX: number
+): ActiveSegment[] {
+  const merged: ActiveSegment[] = [];
+  let i = 0;
+  let j = 0;
+
+  while (i < active.length && j < entering.length) {
+    const keep = active[i]!;
+    const add = entering[j]!;
+    if (compareSegmentsAtX(keep, add, sampleX) <= 0) {
+      merged.push(keep);
+      i += 1;
+    } else {
+      merged.push(add);
+      j += 1;
+    }
+  }
+
+  while (i < active.length) {
+    merged.push(active[i]!);
+    i += 1;
+  }
+  while (j < entering.length) {
+    merged.push(entering[j]!);
+    j += 1;
+  }
+
+  return merged;
+}
+
+function assignLabelsToNewSegments(segments: ActiveSegment[]): boolean {
+  let i = 0;
+  while (i < segments.length) {
+    if (Number.isFinite(segments[i]!.key.order)) {
+      i += 1;
+      continue;
+    }
+
+    const runStart = i;
+    while (i < segments.length && !Number.isFinite(segments[i]!.key.order)) {
+      i += 1;
+    }
+    const runEnd = i;
+    const runCount = runEnd - runStart;
+
+    const leftOrder = runStart > 0 ? segments[runStart - 1]!.key.order : null;
+    const rightOrder = runEnd < segments.length ? segments[runEnd]!.key.order : null;
+
+    if (leftOrder === null && rightOrder === null) {
+      for (let k = 0; k < runCount; k += 1) {
+        const segment = segments[runStart + k]!;
+        segment.key = {
+          order: (k + 1) * LABEL_STEP,
+          tie: segment.edgeId
+        };
+      }
+      continue;
+    }
+
+    if (leftOrder === null && rightOrder !== null) {
+      for (let k = 0; k < runCount; k += 1) {
+        const segment = segments[runStart + k]!;
+        segment.key = {
+          order: rightOrder - LABEL_STEP * (runCount - k),
+          tie: segment.edgeId
+        };
+      }
+      continue;
+    }
+
+    if (leftOrder !== null && rightOrder === null) {
+      for (let k = 0; k < runCount; k += 1) {
+        const segment = segments[runStart + k]!;
+        segment.key = {
+          order: leftOrder + LABEL_STEP * (k + 1),
+          tie: segment.edgeId
+        };
+      }
+      continue;
+    }
+
+    const span = (rightOrder ?? 0) - (leftOrder ?? 0);
+    const step = span / (runCount + 1);
+    if (!(step > MIN_LABEL_GAP)) {
+      return false;
+    }
+
+    for (let k = 0; k < runCount; k += 1) {
+      const segment = segments[runStart + k]!;
+      segment.key = {
+        order: (leftOrder ?? 0) + step * (k + 1),
+        tie: segment.edgeId
+      };
+    }
+  }
+
+  return true;
+}
+
+function relabelAllSegments(segments: ActiveSegment[]): void {
+  for (let i = 0; i < segments.length; i += 1) {
+    const segment = segments[i]!;
+    segment.key = {
+      order: (i + 1) * LABEL_STEP,
+      tie: segment.edgeId
+    };
+  }
+}
+
+function toBalancedInsertionOrder<T>(values: readonly T[]): T[] {
+  const ordered: T[] = [];
+
+  const collect = (start: number, end: number): void => {
+    if (start >= end) {
+      return;
+    }
+    const mid = Math.floor((start + end) / 2);
+    ordered.push(values[mid]!);
+    collect(start, mid);
+    collect(mid + 1, end);
+  };
+
+  collect(0, values.length);
+  return ordered;
 }
 
 export interface SlabIndex {
@@ -111,21 +289,8 @@ function insertBalancedSlabs(tree: BinarySearchTree<SlabRecord, number>, slabs: 
   insertRange(0, slabs.length);
 }
 
-function toBalancedInsertionOrder<T>(values: readonly T[]): T[] {
-  const ordered: T[] = [];
-
-  const collect = (start: number, end: number): void => {
-    if (start >= end) {
-      return;
-    }
-    const mid = Math.floor((start + end) / 2);
-    ordered.push(values[mid]!);
-    collect(start, mid);
-    collect(mid + 1, end);
-  };
-
-  collect(0, values.length);
-  return ordered;
+function isActiveAtX(segment: SegmentGeometry, sampleX: number): boolean {
+  return sampleX > segment.minX && sampleX < segment.maxX;
 }
 
 export function buildSlabIndex(mesh: Mesh): SlabIndex {
@@ -156,11 +321,22 @@ export function buildSlabIndexWithTrace(mesh: Mesh): {
     compare: compareSegmentKeys
   });
 
+  const segmentGeometries = mesh
+    .uniqueUndirectedEdges()
+    .map((edge) => segmentGeometryFromHalfEdge(edge))
+    .filter((segment): segment is SegmentGeometry => segment !== null);
+
+  const enterEvents = new Map<number, SegmentGeometry[]>();
+  const leaveEvents = new Map<number, SegmentGeometry[]>();
+  for (const segment of segmentGeometries) {
+    addToEventMap(enterEvents, segment.minX, segment);
+    addToEventMap(leaveEvents, segment.maxX, segment);
+  }
+
   const slabs: SlabRecord[] = [];
   const steps: SlabBuildTraceStep[] = [];
-  let previousKeys: SegmentKey[] = [];
-  let previousEdgeIds = new Set<number>();
-  const graphEdges = mesh.uniqueUndirectedEdges();
+  let activeSegments: ActiveSegment[] = [];
+  const activeByEdgeId = new Map<number, ActiveSegment>();
 
   for (let i = 0; i < boundaries.length - 1; i += 1) {
     const start = boundaries[i]!;
@@ -175,16 +351,55 @@ export function buildSlabIndexWithTrace(mesh: Mesh): {
             ? end - padding
             : min.x;
 
-    const activeSegments = graphEdges
-      .map((edge) => segmentFromHalfEdge(edge, sampleX))
-      .filter((segment): segment is ActiveSegment => segment !== null)
-      .sort((a, b) => compareSegmentKeys(a.key, b.key));
+    const leftEdgeIds: number[] = [];
+    const enteredEdgeIds: number[] = [];
 
-    if (previousKeys.length > 0) {
-      segmentTree.delete(previousKeys);
-    }
-    if (activeSegments.length > 0) {
-      segmentTree.insert(toBalancedInsertionOrder(activeSegments));
+    if (Number.isFinite(start)) {
+      const leaving = leaveEvents.get(start) ?? [];
+      const removedKeys: SegmentKey[] = [];
+      for (const segment of leaving) {
+        const active = activeByEdgeId.get(segment.edgeId);
+        if (!active) {
+          continue;
+        }
+        leftEdgeIds.push(segment.edgeId);
+        removedKeys.push(active.key);
+      }
+
+      if (removedKeys.length > 0) {
+        segmentTree.delete(removedKeys);
+        const leftSet = new Set(leftEdgeIds);
+        activeSegments = activeSegments.filter((segment) => !leftSet.has(segment.edgeId));
+        for (const edgeId of leftEdgeIds) {
+          activeByEdgeId.delete(edgeId);
+        }
+      }
+
+      const entering = (enterEvents.get(start) ?? [])
+        .filter((segment) => isActiveAtX(segment, sampleX))
+        .map((segment) => segmentFromGeometry(segment, Number.NaN));
+
+      if (entering.length > 0) {
+        sortSegmentsByYAtX(entering, sampleX);
+        const merged = mergeActiveSegmentsByY(activeSegments, entering, sampleX);
+        const survivorKeys = activeSegments.map((segment) => segment.key);
+
+        if (!assignLabelsToNewSegments(merged)) {
+          // Rare fallback when nearby insertions exhaust numeric label gaps.
+          relabelAllSegments(merged);
+          if (survivorKeys.length > 0) {
+            segmentTree.delete(survivorKeys);
+          }
+          segmentTree.insert(toBalancedInsertionOrder(merged));
+        } else {
+          segmentTree.insert(toBalancedInsertionOrder(entering));
+        }
+
+        for (const segment of entering) {
+          enteredEdgeIds.push(segment.edgeId);
+        }
+        activeSegments = merged;
+      }
     }
 
     const version = segmentTree.getLatestVersion();
@@ -203,20 +418,21 @@ export function buildSlabIndexWithTrace(mesh: Mesh): {
     };
 
     slabs.push(slab);
-    previousKeys = snapshotSegments.map((segment) => segment.key);
-
-    const activeEdgeIds = new Set(snapshotSegments.map((segment) => segment.edgeId));
-    const enteredEdgeIds = Array.from(activeEdgeIds).filter((edgeId) => !previousEdgeIds.has(edgeId));
-    const leftEdgeIds = Array.from(previousEdgeIds).filter((edgeId) => !activeEdgeIds.has(edgeId));
+    const activeEdgeIds = Array.from(new Set(snapshotSegments.map((segment) => segment.edgeId)));
     steps.push({
       kind: "slab-built",
       slab,
       enteredEdgeIds,
       leftEdgeIds,
-      activeEdgeIds: Array.from(activeEdgeIds),
+      activeEdgeIds,
       snapshot
     });
-    previousEdgeIds = activeEdgeIds;
+
+    activeSegments = snapshotSegments;
+    activeByEdgeId.clear();
+    for (const segment of activeSegments) {
+      activeByEdgeId.set(segment.edgeId, segment);
+    }
   }
 
   insertBalancedSlabs(slabTree, slabs);
