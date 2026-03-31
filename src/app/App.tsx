@@ -47,6 +47,8 @@ const CUSTOM_OBJ_TEMPLATE = [
   "f 1 2 3 4"
 ].join("\n");
 
+const PLANAR_PHASES = ["Build slabs", "Update tree", "Locate slab", "Search edges", "Resolve face"] as const;
+
 function buildLoadedStateFromObjText(objText: string, sourceName: string): LoadedState {
   const parsed = parseObj(objText);
   const mesh = new Mesh();
@@ -344,10 +346,8 @@ export default function App(): JSX.Element {
   return (
     <main className="app-shell">
       <header>
-        <h1>Persistent Binary Search Tree & Planar Point Location Demo</h1>
-        <p>Click to place points, then press <strong>Start</strong> to run planar point location algorithm.</p>
+        Click to place points, then press <strong>Start</strong> to run planar point location algorithm.
       </header>
-
       <div className="app-layout">
         <section className="controls-row">
           <Controls
@@ -369,6 +369,7 @@ export default function App(): JSX.Element {
               totalSteps={run.frames.length}
               isPlaying={playback.isPlaying}
               speed={playback.speed}
+              phases={PLANAR_PHASES}
               activePhase={currentFrame?.stepperPhase ?? "Build slabs"}
               onPlayPause={() => {
                 playback.setIsPlaying(!playback.isPlaying);

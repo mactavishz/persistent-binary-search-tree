@@ -1,10 +1,7 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { MantineProvider } from "@mantine/core";
-import { theme } from "./theme";
-import "@mantine/core/styles.css";
-import App from "./app/App.js";
-import "./app/styles.css";
+import { RouterProvider } from "@tanstack/react-router";
+import { router } from "./app/router.js";
 
 const rootElement = document.getElementById("root");
 if (!rootElement) {
@@ -13,8 +10,6 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
   <StrictMode>
-    <MantineProvider theme={theme}>
-      <App />
-    </MantineProvider>
+    <RouterProvider router={router} />
   </StrictMode>
 );

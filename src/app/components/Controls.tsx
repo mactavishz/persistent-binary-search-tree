@@ -33,7 +33,6 @@ export function Controls({
         <Select
           label="Presets"
           data={DEMO_OPTIONS}
-          description="Select a preset graph to load."
           value={demo}
           allowDeselect={false}
           w={220}
@@ -54,6 +53,7 @@ export function Controls({
           Reset
         </Button>
         </Group>
+
     </Paper>
   );
 }

@@ -13,7 +13,8 @@ interface PlaybackControlsProps {
   readonly totalSteps: number;
   readonly isPlaying: boolean;
   readonly speed: number;
-  readonly activePhase: "Build slabs" | "Update tree" | "Locate slab" | "Search edges" | "Resolve face";
+  readonly phases: readonly string[];
+  readonly activePhase: string;
   readonly onPlayPause: () => void;
   readonly onNext: () => void;
   readonly onPrevious: () => void;
@@ -22,10 +23,9 @@ interface PlaybackControlsProps {
   readonly onSpeedChange: (speed: number) => void;
 }
 
-const PHASES = ["Build slabs", "Update tree", "Locate slab", "Search edges", "Resolve face"] as const;
-
-function activeIndex(phase: PlaybackControlsProps["activePhase"]): number {
-  return PHASES.findIndex((value) => value === phase);
+function activeIndex(phases: readonly string[], phase: string): number {
+  const index = phases.findIndex((value) => value === phase);
+  return index < 0 ? 0 : index;
 }
 
 export function PlaybackControls(props: PlaybackControlsProps): JSX.Element {
@@ -35,8 +35,13 @@ export function PlaybackControls(props: PlaybackControlsProps): JSX.Element {
         Step Playback
       </Text>
 
-      <Stepper active={activeIndex(props.activePhase)} size="xs" allowNextStepsSelect={false} className="playback-stepper">
-        {PHASES.map((phase) => (
+      <Stepper
+        active={activeIndex(props.phases, props.activePhase)}
+        size="xs"
+        allowNextStepsSelect={false}
+        className="playback-stepper"
+      >
+        {props.phases.map((phase) => (
           <Stepper.Step key={phase} label={phase} />
         ))}
       </Stepper>

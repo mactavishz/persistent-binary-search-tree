@@ -15,11 +15,34 @@ body {
   font-style: normal;
 }
 
+.app-root-shell {
+  width: min(1880px, 100%);
+  margin: 0 auto;
+  padding: 20px;
+  display: grid;
+  gap: 16px;
+}
+
+.route-switcher {
+  background: rgba(255, 255, 255, 0.95);
+}
+
+.landing-shell {
+  display: grid;
+  place-items: center;
+}
+
+.landing-panel {
+  width: min(760px, 100%);
+  background: rgba(255, 255, 255, 0.95);
+}
+
 .app-shell {
   width: min(1880px, 100%);
   margin: 0 auto;
   padding: 20px;
   display: grid;
+  justify-items: center;
   gap: 16px;
 }
 
@@ -32,6 +55,17 @@ body {
   grid-template-rows: max-content max-content;
   gap: 16px;
   align-items: start;
+}
+
+.app-layout-bst {
+  grid-template-columns: minmax(260px, 260px) minmax(0,800px);
+  grid-template-areas:
+    "controls tree";
+}
+
+.controls-panel-bst {
+  display: flex;
+  width: 100%;
 }
 
 .controls-row {
@@ -149,6 +183,18 @@ header p {
   min-height: 700px;
 }
 
+.tree-column-bst {
+  justify-items: center;
+}
+
+.tree-column-bst .tree-panel {
+  width: min(800px, 100%);
+}
+
+.tree-column-bst .tree-unified-canvas {
+  min-height: 540px;
+}
+
 .tree-edge {
   fill: none;
   transition: stroke 220ms ease, stroke-width 220ms ease, opacity 220ms ease;
@@ -175,11 +221,36 @@ header p {
   opacity: 0.84;
 }
 
+.tree-operation-version-path {
+  stroke: #1d4ed8;
+  stroke-width: 5;
+  opacity: 0.92;
+  stroke-linecap: round;
+  animation: tree-operation-path-pulse 320ms ease;
+}
+
 .tree-copy-edge {
   stroke: #fb923c;
   stroke-width: 2;
   stroke-dasharray: 4 4;
   opacity: 0.62;
+}
+
+.tree-step-edge {
+  stroke: #0ea5e9;
+  stroke-width: 6;
+  stroke-dasharray: 12 8;
+  stroke-linecap: round;
+  opacity: 0.94;
+  animation: tree-step-trace 420ms ease;
+}
+
+.tree-step-edge-left {
+  stroke: #0284c7;
+}
+
+.tree-step-edge-right {
+  stroke: #f97316;
 }
 
 .tree-version-root-label {
@@ -248,13 +319,29 @@ header p {
 .tree-node-added .tree-node-circle {
   fill: #dbeafe;
   stroke: #2563eb;
-  animation: tree-update-pulse 220ms ease;
+  animation: tree-node-insert-pop 360ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .tree-node-removed .tree-node-circle {
   fill: #fee2e2;
   stroke: #dc2626;
-  animation: tree-update-pulse 220ms ease;
+  animation: tree-node-remove-pulse 320ms ease;
+}
+
+.tree-node-focus-step .tree-node-circle {
+  stroke: #0284c7;
+  stroke-width: 5.2;
+  animation: tree-focus-pulse 380ms ease;
+}
+
+.tree-node-related-step .tree-node-circle {
+  stroke: #f97316;
+  stroke-width: 4.6;
+  animation: tree-related-pulse 380ms ease;
+}
+
+.tree-node-traverse-step .tree-node-label {
+  fill: #0b4a6f;
 }
 
 .tree-node-removed .tree-node-label {
@@ -360,6 +447,95 @@ header p {
   }
 }
 
+@keyframes tree-operation-path-pulse {
+  0% {
+    opacity: 0.15;
+    stroke-width: 3;
+  }
+
+  100% {
+    opacity: 0.92;
+    stroke-width: 5;
+  }
+}
+
+@keyframes tree-focus-pulse {
+  0% {
+    stroke-width: 3.6;
+    fill: #eff6ff;
+  }
+
+  60% {
+    stroke-width: 6;
+    fill: #dbeafe;
+  }
+
+  100% {
+    stroke-width: 5.2;
+    fill: #ffffff;
+  }
+}
+
+@keyframes tree-related-pulse {
+  0% {
+    stroke-width: 3;
+    fill: #fff7ed;
+  }
+
+  60% {
+    stroke-width: 5;
+    fill: #ffedd5;
+  }
+
+  100% {
+    stroke-width: 4.6;
+    fill: #ffffff;
+  }
+}
+
+@keyframes tree-step-trace {
+  0% {
+    opacity: 0;
+    stroke-dashoffset: 28;
+  }
+
+  100% {
+    opacity: 0.94;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes tree-node-insert-pop {
+  0% {
+    stroke-width: 2.6;
+    fill: #bfdbfe;
+  }
+
+  40% {
+    stroke-width: 6;
+    fill: #93c5fd;
+  }
+
+  100% {
+    stroke-width: 4;
+    fill: #dbeafe;
+  }
+}
+
+@keyframes tree-node-remove-pulse {
+  0% {
+    fill: #fecaca;
+  }
+
+  50% {
+    fill: #fca5a5;
+  }
+
+  100% {
+    fill: #fee2e2;
+  }
+}
+
 .face-active {
   fill: #dbeafe;
   transition: fill 220ms ease;
@@ -397,6 +573,23 @@ header p {
   border-radius: 12px;
 }
 
+
+@media (max-width: 1400px) {
+  .app-layout {
+    grid-template-columns: minmax(280px, 0.9fr) minmax(520px, 1.1fr);
+    grid-template-areas:
+      "controls controls"
+      "sidebar graph"
+      "tree tree";
+  }
+
+  .app-layout-bst {
+    grid-template-columns: minmax(260px, 260px) minmax(0,800px);
+    grid-template-areas:
+      "controls tree";
+  }
+}
+
 @media (max-width: 1080px) {
   .app-layout {
     grid-template-columns: minmax(0, 1fr);
@@ -404,6 +597,13 @@ header p {
       "controls"
       "sidebar"
       "graph"
+      "tree";
+  }
+
+  .app-layout-bst {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "controls"
       "tree";
   }
 
@@ -416,17 +616,7 @@ header p {
   }
 }
 
-@media (max-width: 1400px) {
-  .app-layout {
-    grid-template-columns: minmax(280px, 0.9fr) minmax(520px, 1.1fr);
-    grid-template-areas:
-      "controls controls"
-      "sidebar graph"
-      "tree tree";
-  }
-}
-
-@media (max-width: 720px) {
+@media (max-width: 800px) {
   .app-shell {
     padding: 12px;
   }

@@ -262,4 +262,48 @@ describe("PartialPersistentBinarySearchTree (node-copying)", () => {
       1, 2, 3, 4, 6
     ]);
   });
+
+  it("traces exact-key search traversal", () => {
+    const tree = new PartialPersistentBinarySearchTree<number>();
+    tree.insert([8, 4, 12, 2, 6]);
+
+    const trace = tree.traceSearchExact(6);
+
+    expect(trace.kind).toBe("query");
+    expect(trace.found).toBe(true);
+    expect(trace.changed).toBe(false);
+    expect(trace.events.some((event) => event.phase === "compare")).toBe(true);
+    expect(trace.events.some((event) => event.phase === "search-hit")).toBe(true);
+  });
+
+  it("traces duplicate insertion without structural changes", () => {
+    const tree = new PartialPersistentBinarySearchTree<number>();
+    tree.insert([5, 3, 7]);
+    const previousVersion = tree.getLatestVersion();
+
+    const trace = tree.traceInsert(7);
+
+    expect(trace.kind).toBe("insert");
+    expect(trace.sourceVersion).toBe(previousVersion);
+    expect(trace.targetVersion).toBe(previousVersion + 1);
+    expect(trace.changed).toBe(false);
+    expect(trace.events.some((event) => event.phase === "duplicate")).toBe(true);
+  });
+
+  it("traces delete with successor steps and keeps older version intact", () => {
+    const tree = new PartialPersistentBinarySearchTree<number>();
+    tree.insert([8, 4, 12, 2, 6, 10, 14]);
+    const previousVersion = tree.getLatestVersion();
+
+    const trace = tree.traceDelete(8);
+
+    expect(trace.kind).toBe("delete");
+    expect(trace.sourceVersion).toBe(previousVersion);
+    expect(trace.targetVersion).toBe(previousVersion + 1);
+    expect(trace.changed).toBe(true);
+    expect(trace.found).toBe(true);
+    expect(trace.events.some((event) => event.phase === "successor")).toBe(true);
+    expect(tree.search(8, trace.targetVersion)).toBeNull();
+    expect(tree.search(8, previousVersion)?.key).toBe(8);
+  });
 });

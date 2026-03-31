@@ -15,6 +15,11 @@ interface PersistentTreeSummaryView {
   readonly activeEdgeLabels: string[];
   readonly enteredEdgeLabels: string[];
   readonly removedEdgeLabels: string[];
+  readonly phase?: string;
+  readonly focusLabel?: string | null;
+  readonly relatedLabel?: string | null;
+  readonly direction?: "left" | "right";
+  readonly stepToken?: string;
 }
 
 interface PersistentTreeVersionView {
@@ -29,6 +34,8 @@ interface PersistentTreeViewProps {
   readonly visibleVersions?: number[];
   readonly activeVersion: number | null;
   readonly latestVersion: number | null;
+  readonly forceDummyRoot?: boolean;
+  readonly singleVersionLineMode?: boolean;
 }
 
 interface UnifiedNode {
@@ -91,13 +98,24 @@ function formatLabels(labels: string[]): string {
 }
 
 function formatVersionMembership(versions: Set<number>): string {
-  return Array.from(versions)
-    .sort(compareNumbers)
-    .map((version) => normalizeVersion(version))
-    .join(",");
+  const sorted = Array.from(versions).sort(compareNumbers);
+  if (sorted.length === 0) {
+    return "";
+  }
+  if (sorted.length <= 4) {
+    return sorted.map((version) => normalizeVersion(version)).join(",");
+  }
+
+  const first = sorted[0]!;
+  const last = sorted[sorted.length - 1]!;
+  return `${normalizeVersion(first)}-${normalizeVersion(last)}`;
 }
 
 function asTspanLabel(label: string): JSX.Element {
+  if (/^\d+$/.test(label)) {
+    return <>{label}</>;
+  }
+
   const { letters, number } = splitLabelParts(label);
   return (
     <>
@@ -115,7 +133,7 @@ function compareNumbers(a: number, b: number): number {
   return a - b;
 }
 
-function buildUnifiedModel(versions: PersistentTreeVersionView[]): UnifiedTreeModel {
+function buildUnifiedModel(versions: PersistentTreeVersionView[], forceDummyRoot: boolean): UnifiedTreeModel {
   const sorted = [...versions].sort((a, b) => a.version - b.version);
 
   const nodeMetaById = new Map<number, { label: string; copiedFromNodeId: number | null; versions: Set<number> }>();
@@ -293,7 +311,7 @@ function buildUnifiedModel(versions: PersistentTreeVersionView[]): UnifiedTreeMo
   }
 
   let graphRootIds = [...candidateRootIds];
-  if (graphRootIds.length > 1) {
+  if (graphRootIds.length > 1 || (forceDummyRoot && graphRootIds.length > 0)) {
     nodeMetaById.set(DUMMY_ROOT_NODE_ID, {
       label: DUMMY_ROOT_LABEL,
       copiedFromNodeId: null,
@@ -540,9 +558,16 @@ function edgeOffset(
   return (index - (carryingVersions.length - 1) / 2) * 2.8;
 }
 
-export function PersistentTreeView({ versions, visibleVersions, activeVersion, latestVersion }: PersistentTreeViewProps): JSX.Element {
+export function PersistentTreeView({
+  versions,
+  visibleVersions,
+  activeVersion,
+  latestVersion,
+  forceDummyRoot = false,
+  singleVersionLineMode = false
+}: PersistentTreeViewProps): JSX.Element {
   const sortedVersions = useMemo(() => [...versions].sort((a, b) => a.version - b.version), [versions]);
-  const unified = useMemo(() => buildUnifiedModel(sortedVersions), [sortedVersions]);
+  const unified = useMemo(() => buildUnifiedModel(sortedVersions, forceDummyRoot), [sortedVersions, forceDummyRoot]);
   const visibleVersionSet = useMemo(() => {
     if (visibleVersions === undefined) {
       return new Set(sortedVersions.map((snapshot) => snapshot.version));
@@ -633,6 +658,53 @@ export function PersistentTreeView({ versions, visibleVersions, activeVersion, l
     [activeSnapshot?.summary.removedEdgeLabels]
   );
 
+  const activeVersionEdges = useMemo(() => {
+    if (!activeSnapshot || !activeSnapshot.summary.phase) {
+      return [];
+    }
+
+    const versionEdgeKeys = unified.versionEdges.get(activeSnapshot.version);
+    if (!versionEdgeKeys) {
+      return [];
+    }
+
+    return Array.from(versionEdgeKeys)
+      .map((key) => unified.edgesByKey.get(key))
+      .filter(isDefined)
+      .filter((edge) => visibleEdgeKeys.has(edge.key));
+  }, [activeSnapshot, unified.edgesByKey, unified.versionEdges, visibleEdgeKeys]);
+
+  const activeStepToken = activeSnapshot?.summary.stepToken ?? null;
+  const activeFocusLabel = activeSnapshot?.summary.focusLabel ?? null;
+  const activeRelatedLabel = activeSnapshot?.summary.relatedLabel ?? null;
+  const activeDirection = activeSnapshot?.summary.direction ?? null;
+  const isTraversalStep = activeSnapshot?.summary.phase === "compare";
+
+  const visibleNodeByLabel = useMemo(() => {
+    const byLabel = new Map<string, UnifiedNode>();
+    for (const node of visibleNodes) {
+      byLabel.set(node.label, node);
+    }
+    return byLabel;
+  }, [visibleNodes]);
+
+  const activeTraversalEdge = useMemo(() => {
+    if (!activeFocusLabel || !activeRelatedLabel) {
+      return null;
+    }
+
+    const source = visibleNodeByLabel.get(activeFocusLabel);
+    const target = visibleNodeByLabel.get(activeRelatedLabel);
+    if (!source || !target) {
+      return null;
+    }
+
+    return {
+      source,
+      target
+    };
+  }, [activeFocusLabel, activeRelatedLabel, visibleNodeByLabel]);
+
   return (
     <Paper className="tree-panel tree-panel-large" withBorder radius="md" p="md">
       <Stack gap="xs">
@@ -711,48 +783,71 @@ export function PersistentTreeView({ versions, visibleVersions, activeVersion, l
               </g>
 
               <g className="tree-unified-version-overlays" pointerEvents="none">
-                {visibleSnapshots.map((snapshot, versionIndex) => {
-                  const versionEdgeKeys = unified.versionEdges.get(snapshot.version);
-                  if (!versionEdgeKeys) {
-                    return null;
-                  }
+                {!singleVersionLineMode
+                  ? visibleSnapshots.map((snapshot, versionIndex) => {
+                      const versionEdgeKeys = unified.versionEdges.get(snapshot.version);
+                      if (!versionEdgeKeys) {
+                        return null;
+                      }
 
-                  const isActive = activeVersion !== null && snapshot.version === activeVersion;
-                  const isLatest = latestVersion !== null && snapshot.version === latestVersion;
-                  const stroke = versionColor(versionIndex, visibleSnapshots.length, isActive, isLatest);
+                      const isActive = activeVersion !== null && snapshot.version === activeVersion;
+                      const isLatest = latestVersion !== null && snapshot.version === latestVersion;
+                      const stroke = versionColor(versionIndex, visibleSnapshots.length, isActive, isLatest);
 
-                  return Array.from(versionEdgeKeys)
-                    .map((key) => unified.edgesByKey.get(key))
-                    .filter(isDefined)
-                    .filter((edge) => visibleEdgeKeys.has(edge.key))
-                    .map((edge) => {
+                      return Array.from(versionEdgeKeys)
+                        .map((key) => unified.edgesByKey.get(key))
+                        .filter(isDefined)
+                        .filter((edge) => visibleEdgeKeys.has(edge.key))
+                        .map((edge) => {
+                          const source = unified.nodeById.get(edge.fromNodeId);
+                          const target = unified.nodeById.get(edge.toNodeId);
+                          if (!source || !target) {
+                            return null;
+                          }
+
+                          const dx = target.x - source.x;
+                          const dy = target.y - source.y;
+                          const length = Math.hypot(dx, dy) || 1;
+                          const normalX = -dy / length;
+                          const normalY = dx / length;
+                          const offset = edgeOffset(edge, sortedVersions, snapshot.version);
+
+                          return (
+                            <line
+                              key={`version-${snapshot.version}-${edge.key}`}
+                              className={`tree-version-path${isActive ? " tree-version-path-active" : ""}${isLatest ? " tree-version-path-latest" : ""}`}
+                              x1={source.x + normalX * offset}
+                              y1={source.y + normalY * offset}
+                              x2={target.x + normalX * offset}
+                              y2={target.y + normalY * offset}
+                              data-version={snapshot.version}
+                              style={{ stroke }}
+                            />
+                          );
+                        });
+                    })
+                  : null}
+                {singleVersionLineMode
+                  ? activeVersionEdges.map((edge) => {
                       const source = unified.nodeById.get(edge.fromNodeId);
                       const target = unified.nodeById.get(edge.toNodeId);
                       if (!source || !target) {
                         return null;
                       }
 
-                      const dx = target.x - source.x;
-                      const dy = target.y - source.y;
-                      const length = Math.hypot(dx, dy) || 1;
-                      const normalX = -dy / length;
-                      const normalY = dx / length;
-                      const offset = edgeOffset(edge, sortedVersions, snapshot.version);
-
                       return (
                         <line
-                          key={`version-${snapshot.version}-${edge.key}`}
-                          className={`tree-version-path${isActive ? " tree-version-path-active" : ""}${isLatest ? " tree-version-path-latest" : ""}`}
-                          x1={source.x + normalX * offset}
-                          y1={source.y + normalY * offset}
-                          x2={target.x + normalX * offset}
-                          y2={target.y + normalY * offset}
-                          data-version={snapshot.version}
-                          style={{ stroke }}
+                          key={`operation-version-${edge.key}`}
+                          className="tree-operation-version-path"
+                          x1={source.x}
+                          y1={source.y}
+                          x2={target.x}
+                          y2={target.y}
+                          data-version={activeSnapshot?.version}
                         />
                       );
-                    });
-                })}
+                    })
+                  : null}
               </g>
 
               <g className="tree-unified-copy-edges" pointerEvents="none">
@@ -774,6 +869,19 @@ export function PersistentTreeView({ versions, visibleVersions, activeVersion, l
                     />
                   );
                 })}
+              </g>
+
+              <g className="tree-step-overlay" pointerEvents="none">
+                {activeTraversalEdge ? (
+                  <line
+                    key={`step-${activeStepToken ?? "active"}`}
+                    className={`tree-step-edge${activeDirection ? ` tree-step-edge-${activeDirection}` : ""}`}
+                    x1={activeTraversalEdge.source.x}
+                    y1={activeTraversalEdge.source.y}
+                    x2={activeTraversalEdge.target.x}
+                    y2={activeTraversalEdge.target.y}
+                  />
+                ) : null}
               </g>
 
               <g className="tree-unified-nodes" pointerEvents="none">
@@ -804,10 +912,30 @@ export function PersistentTreeView({ versions, visibleVersions, activeVersion, l
                   if (activeRemovedLabels.has(node.label)) {
                     classNames.push("tree-node-removed");
                   }
+                  if (activeFocusLabel !== null && node.label === activeFocusLabel) {
+                    classNames.push("tree-node-focus-step");
+                    if (isTraversalStep) {
+                      classNames.push("tree-node-traverse-step");
+                    }
+                  }
+                  if (activeRelatedLabel !== null && node.label === activeRelatedLabel) {
+                    classNames.push("tree-node-related-step");
+                    if (isTraversalStep) {
+                      classNames.push("tree-node-traverse-step");
+                    }
+                  }
+
+                  const shouldResetAnimation =
+                    activeStepToken !== null &&
+                    (node.label === activeFocusLabel ||
+                      node.label === activeRelatedLabel ||
+                      activeAddedLabels.has(node.label) ||
+                      activeRemovedLabels.has(node.label));
+                  const nodeKey = shouldResetAnimation ? `${node.nodeId}-${activeStepToken}` : `${node.nodeId}`;
 
                   return (
                     <g
-                      key={node.nodeId}
+                      key={nodeKey}
                       className={classNames.join(" ")}
                       transform={`translate(${node.x} ${node.y})`}
                       data-node-id={node.nodeId}
