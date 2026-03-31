@@ -585,13 +585,15 @@ export class PartialPersistentBinarySearchTree<T, K = T> {
     }
 
     const snapshotVersion = params.snapshotVersion ?? this.traceRecorder.version;
+    const focus = this.resolveTraceNode(params.focus ?? null, snapshotVersion);
+    const related = this.resolveTraceNode(params.related ?? null, snapshotVersion);
     const event = {
       phase: params.phase,
       detail: params.detail,
       version: snapshotVersion,
       snapshot: snapshotVersion < 0 ? null : this.snapshot(snapshotVersion),
-      focus: this.toTraceRef(PersistentNode.getLiveNode(params.focus ?? null)),
-      related: this.toTraceRef(PersistentNode.getLiveNode(params.related ?? null)),
+      focus: this.toTraceRef(focus),
+      related: this.toTraceRef(related),
       ...(params.cmp !== undefined ? { cmp: params.cmp } : {}),
       ...(params.direction !== undefined ? { direction: params.direction } : {})
     } satisfies PersistentTraceEvent<T, K>;
@@ -1069,6 +1071,19 @@ export class PartialPersistentBinarySearchTree<T, K = T> {
 
   private keyLabel(key: K): string {
     return String(key);
+  }
+
+  private resolveTraceNode(node: PersistentNode<T, K> | null, snapshotVersion: number): PersistentNode<T, K> | null {
+    if (!node || snapshotVersion < 0) {
+      return node;
+    }
+
+    let resolved = node;
+    while (resolved.copy && resolved.copy.version <= snapshotVersion) {
+      resolved = resolved.copy;
+    }
+
+    return resolved;
   }
 
   private toTraceRef(node: PersistentNode<T, K> | null): PersistentTraceNodeRef<K> | null {

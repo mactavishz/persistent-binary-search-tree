@@ -4,25 +4,32 @@ import {
   Paper,
   SegmentedControl,
   Select,
-  Stack,
   Text,
 } from "@mantine/core";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { JSX } from "react";
-import { PersistentTreeView } from "../../components/PersistentTreeView.js";
 import { usePlayback } from "../../hooks/usePlayback.js";
 import { PartialPersistentBinarySearchTree } from "../../../persistent/partial-persistent-bst.js";
 import {
+  buildBstMemoryGraph,
   buildBstVisualizerRun,
-  buildTreeVersionsFromSnapshots,
   collectSnapshotSeries,
+  type BstStepHighlight,
   type BstVisualizerFrame,
   type BstVisualizerRun,
 } from "./bst-visualizer.js";
+import { BstTreeView } from "./BstTreeView.js";
 
 type BstOperation = "insert" | "delete" | "query";
 
 const SAMPLE_KEYS = [20, 10, 30] as const;
+const EMPTY_HIGHLIGHT: BstStepHighlight = {
+  focusNodeId: null,
+  relatedNodeId: null,
+  activeNodeIds: [],
+  enteredNodeIds: [],
+  removedNodeIds: [],
+};
 
 function createTree(
   withSample: boolean,
@@ -50,17 +57,16 @@ export function BstDemoPage(): JSX.Element {
       ? String(snapshots[snapshots.length - 1]!.version)
       : null,
   );
+  const [selectedVersion, setSelectedVersion] = useState<number | null>(
+    snapshots.length > 0 ? snapshots[snapshots.length - 1]!.version : null,
+  );
   const [run, setRun] = useState<BstVisualizerRun | null>(null);
 
   const playback = usePlayback(run?.frames.length ?? 0);
-
-  const treeVersions = useMemo(
-    () => buildTreeVersionsFromSnapshots(snapshots),
-    [snapshots],
-  );
+  const memoryGraph = useMemo(() => buildBstMemoryGraph(snapshots), [snapshots]);
   const latestVersion =
-    treeVersions.length > 0
-      ? treeVersions[treeVersions.length - 1]!.version
+    snapshots.length > 0
+      ? snapshots[snapshots.length - 1]!.version
       : null;
 
   useEffect(() => {
@@ -77,6 +83,7 @@ export function BstDemoPage(): JSX.Element {
   useEffect(() => {
     if (latestVersion === null) {
       setQueryVersion(null);
+      setSelectedVersion(null);
       return;
     }
 
@@ -87,7 +94,15 @@ export function BstDemoPage(): JSX.Element {
     ) {
       setQueryVersion(String(latestVersion));
     }
-  }, [latestVersion, queryVersion]);
+
+    if (
+      selectedVersion === null ||
+      Number.isNaN(selectedVersion) ||
+      selectedVersion > latestVersion
+    ) {
+      setSelectedVersion(latestVersion);
+    }
+  }, [latestVersion, queryVersion, selectedVersion]);
 
   const currentFrame: BstVisualizerFrame | null = useMemo(() => {
     if (!run || run.frames.length === 0) {
@@ -104,16 +119,12 @@ export function BstDemoPage(): JSX.Element {
       : null;
   const canExecute = parsedKey !== null;
 
-  const visibleVersions =
-    currentFrame?.visibleVersions ??
-    treeVersions.map((version) => version.version);
-  const showOperationHighlight = run !== null && playback.isPlaying;
+  const showOperationHighlight = run !== null;
   const activeVersion = showOperationHighlight
     ? (currentFrame?.activeVersion ?? null)
     : null;
-  const latestVisibleVersion = showOperationHighlight
-    ? (currentFrame?.latestVersion ?? null)
-    : null;
+  const latestVisibleVersion =
+    currentFrame?.latestVersion ?? latestVersion;
 
   const replaceTree = (withSample: boolean): void => {
     const tree = createTree(withSample);
@@ -125,6 +136,9 @@ export function BstDemoPage(): JSX.Element {
       nextSnapshots.length > 0
         ? String(nextSnapshots[nextSnapshots.length - 1]!.version)
         : null,
+    );
+    setSelectedVersion(
+      nextSnapshots.length > 0 ? nextSnapshots[nextSnapshots.length - 1]!.version : null,
     );
   };
 
@@ -148,6 +162,8 @@ export function BstDemoPage(): JSX.Element {
             );
 
     const nextSnapshots = collectSnapshotSeries(tree);
+    const latestNextVersion =
+      nextSnapshots.length > 0 ? nextSnapshots[nextSnapshots.length - 1]!.version : null;
     const nextRun = buildBstVisualizerRun({
       trace,
       snapshots: nextSnapshots,
@@ -158,12 +174,22 @@ export function BstDemoPage(): JSX.Element {
     });
 
     setSnapshots(nextSnapshots);
+    if (operation === "query" && !Number.isNaN(queryVersionNumber)) {
+      setSelectedVersion(queryVersionNumber);
+    } else {
+      setSelectedVersion(latestNextVersion);
+    }
     setRun(nextRun);
   };
 
-  const versionOptions = treeVersions.map((version) => ({
-    value: String(version.version),
-    label: `v${version.version}`,
+  const handleSelectVersion = (version: number): void => {
+    setSelectedVersion(version);
+    setQueryVersion(String(version));
+  };
+
+  const versionOptions = snapshots.map((snapshot) => ({
+    value: String(snapshot.version),
+    label: `v${snapshot.version}`,
   }));
 
   return (
@@ -247,13 +273,13 @@ export function BstDemoPage(): JSX.Element {
         </section>
 
         <section className="tree-column tree-column-bst">
-          <PersistentTreeView
-            versions={currentFrame?.treeVersions ?? treeVersions}
-            visibleVersions={visibleVersions}
+          <BstTreeView
+            memoryGraph={currentFrame?.memoryGraph ?? memoryGraph}
+            highlight={currentFrame?.highlight ?? EMPTY_HIGHLIGHT}
             activeVersion={activeVersion}
             latestVersion={latestVisibleVersion}
-            forceDummyRoot
-            singleVersionLineMode
+            selectedVersion={selectedVersion}
+            onSelectVersion={handleSelectVersion}
           />
         </section>
       </div>
