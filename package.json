@@ -7,11 +7,12 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
+    "preview": "pnpm run build && wrangler dev",
     "test": "vitest",
     "test:node": "vitest --run --environment node",
     "test:browser": "vitest --run --environment jsdom",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "deploy": "pnpm run build && wrangler deploy"
   },
   "dependencies": {
     "@mantine/core": "8.3.16",
@@ -34,6 +35,7 @@
     "postcss-simple-vars": "^7.0.1",
     "typescript": "^5.8.3",
     "vite": "^7.2.0",
-    "vitest": "^3.2.4"
+    "vitest": "^3.2.4",
+    "wrangler": "^4.79.0"
   }
 }
