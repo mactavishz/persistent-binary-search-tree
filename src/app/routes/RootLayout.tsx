@@ -6,8 +6,8 @@ import "@mantine/core/styles.css";
 import "../styles.css";
 
 const NAV_ITEMS = [
-  { label: "Point Location", value: "/planar" },
-  { label: "Persistent BST", value: "/bst" }
+  { label: "Persistent BST", value: "/bst" },
+  { label: "Point Location", value: "/planar" }
 ] as const;
 
 type RoutePath = (typeof NAV_ITEMS)[number]["value"];
