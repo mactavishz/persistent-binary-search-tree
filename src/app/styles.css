@@ -58,9 +58,9 @@ body {
 }
 
 .app-layout-bst {
-  grid-template-columns: minmax(260px, 260px) minmax(0,800px);
+  grid-template-columns: minmax(260px, 260px) minmax(0, 800px) minmax(280px, 320px);
   grid-template-areas:
-    "controls tree";
+    "controls tree history";
 }
 
 .controls-panel-bst {
@@ -74,14 +74,16 @@ body {
 
 .sidebar-column,
 .graph-column,
-.tree-column {
+.tree-column,
+.history-column {
   display: grid;
   gap: 12px;
   align-content: start;
 }
 
 .graph-column,
-.tree-column {
+.tree-column,
+.history-column {
   max-width: 100%;
 }
 
@@ -95,6 +97,10 @@ body {
 
 .tree-column {
   grid-area: tree;
+}
+
+.history-column {
+  grid-area: history;
 }
 
 header h1 {
@@ -121,6 +127,7 @@ header p {
 .results-panel,
 .playback-panel,
 .step-details-panel,
+.history-panel,
 .tree-panel {
   background: rgba(255, 255, 255, 0.95);
 }
@@ -197,6 +204,28 @@ header p {
 
 .tree-column-bst .bst-tree-canvas {
   min-height: 540px;
+}
+
+.history-column-bst {
+  justify-items: stretch;
+}
+
+.history-column-bst .history-panel {
+  width: min(320px, 100%);
+}
+
+.bst-history-scroll {
+  border-top: 1px solid #e2e8f0;
+  padding-top: 15px;
+}
+
+.bst-history-entry {
+  cursor: pointer;
+  user-select: none;
+}
+
+.bst-history-entry-selected {
+  color: #1d4ed8;
 }
 
 .bst-tree-version-badge {
@@ -696,9 +725,14 @@ header p {
   }
 
   .app-layout-bst {
-    grid-template-columns: minmax(260px, 260px) minmax(0,800px);
+    grid-template-columns: minmax(260px, 260px) minmax(0, 1fr);
     grid-template-areas:
-      "controls tree";
+      "controls tree"
+      "controls history";
+  }
+
+  .history-column-bst .history-panel {
+    width: 100%;
   }
 }
 
@@ -716,7 +750,8 @@ header p {
     grid-template-columns: minmax(0, 1fr);
     grid-template-areas:
       "controls"
-      "tree";
+      "tree"
+      "history";
   }
 
   .graph-panel {

@@ -78,6 +78,7 @@ describe("router shell", () => {
 
     expect(container.textContent ?? "").toContain("Start");
     expect(container.textContent ?? "").toContain("Persistent BST");
+    expect(container.textContent ?? "").toContain("Operation History");
     expect(container.textContent ?? "").not.toContain("Step Playback");
   });
 });

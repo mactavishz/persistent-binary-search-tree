@@ -3,7 +3,7 @@ import { PartialPersistentBinarySearchTree } from "../src/persistent/partial-per
 import {
   buildBstVisualizerRun,
   collectSnapshotSeries
-} from "../src/app/routes/bst/bst-visualizer.js";
+} from "../src/app/routes/bst/BstVisualizer.js";
 
 describe("buildBstVisualizerRun", () => {
   it("builds playback frames for insert traces", () => {

@@ -17,7 +17,11 @@ import {
   type BstStepHighlight,
   type BstVisualizerFrame,
   type BstVisualizerRun,
-} from "./bst-visualizer.js";
+} from "./BstVisualizer.js";
+import {
+  BstOperationHistory,
+  type BstOperationHistoryEntry,
+} from "./BstOperationHistory.js";
 import { BstTreeView } from "./BstTreeView.js";
 
 type BstOperation = "insert" | "delete" | "query";
@@ -30,6 +34,54 @@ const EMPTY_HIGHLIGHT: BstStepHighlight = {
   enteredNodeIds: [],
   removedNodeIds: [],
 };
+
+function operationLabel(kind: BstOperationHistoryEntry["kind"]): string {
+  return kind === "insert" ? "Insert" : "Delete";
+}
+
+function createHistoryEntry(params: {
+  readonly version: number;
+  readonly kind: BstOperationHistoryEntry["kind"];
+  readonly key: number;
+}): BstOperationHistoryEntry {
+  return {
+    version: params.version,
+    kind: params.kind,
+    key: params.key,
+    label: `V${params.version}: ${operationLabel(params.kind)} ${params.key}`,
+  };
+}
+
+function createSampleHistoryEntries(): BstOperationHistoryEntry[] {
+  return SAMPLE_KEYS.map((key, index) =>
+    createHistoryEntry({
+      version: index,
+      kind: "insert",
+      key,
+    }),
+  );
+}
+
+function historyEntryFromTrace(trace: {
+  readonly kind: "insert" | "delete" | "query";
+  readonly key: number;
+  readonly sourceVersion: number;
+  readonly targetVersion: number;
+}): BstOperationHistoryEntry | null {
+  if (trace.kind !== "insert" && trace.kind !== "delete") {
+    return null;
+  }
+
+  if (trace.targetVersion <= trace.sourceVersion) {
+    return null;
+  }
+
+  return createHistoryEntry({
+    version: trace.targetVersion,
+    kind: trace.kind,
+    key: trace.key,
+  });
+}
 
 function createTree(
   withSample: boolean,
@@ -59,6 +111,9 @@ export function BstDemoPage(): JSX.Element {
   );
   const [selectedVersion, setSelectedVersion] = useState<number | null>(
     snapshots.length > 0 ? snapshots[snapshots.length - 1]!.version : null,
+  );
+  const [historyEntries, setHistoryEntries] = useState<BstOperationHistoryEntry[]>(
+    () => createSampleHistoryEntries(),
   );
   const [run, setRun] = useState<BstVisualizerRun | null>(null);
 
@@ -140,6 +195,7 @@ export function BstDemoPage(): JSX.Element {
     setSelectedVersion(
       nextSnapshots.length > 0 ? nextSnapshots[nextSnapshots.length - 1]!.version : null,
     );
+    setHistoryEntries(withSample ? createSampleHistoryEntries() : []);
   };
 
   const execute = (): void => {
@@ -172,12 +228,16 @@ export function BstDemoPage(): JSX.Element {
           ? queryVersionNumber
           : null,
     });
+    const nextHistoryEntry = historyEntryFromTrace(trace);
 
     setSnapshots(nextSnapshots);
     if (operation === "query" && !Number.isNaN(queryVersionNumber)) {
       setSelectedVersion(queryVersionNumber);
     } else {
       setSelectedVersion(latestNextVersion);
+    }
+    if (nextHistoryEntry) {
+      setHistoryEntries((entries) => [...entries, nextHistoryEntry]);
     }
     setRun(nextRun);
   };
@@ -278,6 +338,14 @@ export function BstDemoPage(): JSX.Element {
             highlight={currentFrame?.highlight ?? EMPTY_HIGHLIGHT}
             activeVersion={activeVersion}
             latestVersion={latestVisibleVersion}
+            selectedVersion={selectedVersion}
+            onSelectVersion={handleSelectVersion}
+          />
+        </section>
+
+        <section className="history-column history-column-bst">
+          <BstOperationHistory
+            entries={historyEntries}
             selectedVersion={selectedVersion}
             onSelectVersion={handleSelectVersion}
           />

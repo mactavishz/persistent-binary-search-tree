@@ -1,6 +1,6 @@
 import { Paper, Text } from "@mantine/core";
 import type { JSX } from "react";
-import type { BstVisualizerFrame } from "./bst-visualizer.js";
+import type { BstVisualizerFrame } from "./BstVisualizer.js";
 
 interface BstStepDetailsProps {
   readonly frame: BstVisualizerFrame;

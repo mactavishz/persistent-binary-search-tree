@@ -1,7 +1,7 @@
 import { Badge, Group, Paper, Stack, Text } from "@mantine/core";
 import { useMemo } from "react";
 import type { JSX, KeyboardEvent } from "react";
-import type { BstMemoryEdge, BstMemoryGraph, BstMemoryNode, BstStepHighlight } from "./bst-visualizer.js";
+import type { BstMemoryEdge, BstMemoryGraph, BstMemoryNode, BstStepHighlight } from "./BstVisualizer.js";
 
 interface BstTreeViewProps {
   readonly memoryGraph: BstMemoryGraph;

@@ -5,7 +5,7 @@ import { flushSync } from "react-dom";
 import { createRoot } from "react-dom/client";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { BstTreeView } from "../src/app/routes/bst/BstTreeView.js";
-import type { BstMemoryGraph, BstStepHighlight } from "../src/app/routes/bst/bst-visualizer.js";
+import type { BstMemoryGraph, BstStepHighlight } from "../src/app/routes/bst/BstVisualizer.js";
 
 beforeAll(() => {
   if (typeof window.matchMedia !== "function") {
