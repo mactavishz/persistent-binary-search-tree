@@ -16,10 +16,10 @@ export function LandingPage(): JSX.Element {
             Point Location demo focuses on planar point location using a persistent segment tree, while the the persistent BST demo focuses on step-by-step insert, remove, and query exploration.
           </Text>
           <Group mt="md" gap="sm">
-            <Button type="button" onClick={() => void navigate({ to: "/planar" })}>
+            <Button type="button" onClick={() => void navigate({ to: "/planar-point-loc" })}>
               Open point-location demo
             </Button>
-            <Button type="button" variant="default" onClick={() => void navigate({ to: "/bst" })}>
+            <Button type="button" variant="default" onClick={() => void navigate({ to: "/persistent-bst" })}>
               Open persistent BST demo
             </Button>
           </Group>

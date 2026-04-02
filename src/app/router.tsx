@@ -16,13 +16,13 @@ const landingRoute = createRoute({
 
 const planarRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/planar",
+  path: "/planar-point-loc",
   component: PlanarDemoPage
 });
 
 const bstRoute = createRoute({
   getParentRoute: () => rootRoute,
-  path: "/bst",
+  path: "/persistent-bst",
   component: BstDemoPage
 });
 

@@ -73,8 +73,8 @@ describe("router shell", () => {
     expect(container.textContent ?? "").toContain("Point Location");
   });
 
-  it("renders persistent BST page at /bst", async () => {
-    const { container } = await renderPath("/bst");
+  it("renders persistent BST page at /persistent-bst", async () => {
+    const { container } = await renderPath("/persistent-bst");
 
     expect(container.textContent ?? "").toContain("Start");
     expect(container.textContent ?? "").toContain("Persistent BST");

@@ -6,18 +6,18 @@ import "@mantine/core/styles.css";
 import "../styles.css";
 
 const NAV_ITEMS = [
-  { label: "Persistent BST", value: "/bst" },
-  { label: "Point Location", value: "/planar" }
+  { label: "Persistent BST", value: "/persistent-bst" },
+  { label: "Point Location", value: "/planar-point-loc" }
 ] as const;
 
-type RoutePath = (typeof NAV_ITEMS)[number]["value"];
+type RoutePath = (typeof NAV_ITEMS)[number]["value"] | "/";
 
 function activePath(pathname: string): RoutePath {
-  if (pathname.startsWith("/bst")) {
-    return "/bst";
+  if (pathname.startsWith("/persistent-bst")) {
+    return "/persistent-bst";
   }
-  if (pathname.startsWith("/planar")) {
-    return "/planar";
+  if (pathname.startsWith("/planar-point-loc")) {
+    return "/planar-point-loc";
   }
   return "/";
 }
